@@ -16,11 +16,11 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation -0.06722336987497375 0.9890754198674689 0.13119006195837646 1.9246903293699233
-  position 18.52384350859544 5.545629986672296 -5.764468260922775
+  orientation 0.5614741053212301 0.6060886271011726 0.5633856628920724 4.222074230936402
+  position -2.6784954592558496 28.16188092119614 -1.1420783893988926
   near 1
   follow "CapraHircus"
-  followType "Mounted Shot"
+  followType "None"
 }
 TexturedBackground {
 }
@@ -35,7 +35,133 @@ CircleArena {
   wallHeight 1
 }
 DEF Ped1 Pedestrian {
-  translation 0 1.3390909090909093 0.5
+  translation 6 1.33909 1
+  controllerArgs [
+    "--trajectory=0 3, 0 -4"
+    "--speed=1.0"
+  ]
+  rightLegAngle 0.20727272727272805
+  rightLowerLegAngle 0.10181818181818274
+  rightFootAngle 0.30545454545454814
+  leftLegAngle -1.0609090909090928
+  leftLowerLegAngle 1.6745454545454554
+  leftFootAngle -0.03181818181818273
+  rightArmAngle -0.21545454545454884
+  rightLowerArmAngle -0.5036363636363654
+  rightHandAngle -0.2281818181818187
+  leftArmAngle 0.3809090909090956
+  leftLowerArmAngle -0.5527272727272762
+  leftHandAngle 0.08727272727272804
+  headAngle 0.024545454545453965
+}
+DEF Ped1 Pedestrian {
+  translation 2.56 1.33909 -3.49
+  name "pedestrian(7)"
+  controllerArgs [
+    "--trajectory=0 3, 0 -4"
+    "--speed=1.0"
+  ]
+  rightLegAngle 0.20727272727272805
+  rightLowerLegAngle 0.10181818181818274
+  rightFootAngle 0.30545454545454814
+  leftLegAngle -1.0609090909090928
+  leftLowerLegAngle 1.6745454545454554
+  leftFootAngle -0.03181818181818273
+  rightArmAngle -0.21545454545454884
+  rightLowerArmAngle -0.5036363636363654
+  rightHandAngle -0.2281818181818187
+  leftArmAngle 0.3809090909090956
+  leftLowerArmAngle -0.5527272727272762
+  leftHandAngle 0.08727272727272804
+  headAngle 0.024545454545453965
+}
+DEF Ped1 Pedestrian {
+  translation -4.82 1.33909 -2.49
+  name "pedestrian(8)"
+  controllerArgs [
+    "--trajectory=0 3, 0 -4"
+    "--speed=1.0"
+  ]
+  rightLegAngle 0.20727272727272805
+  rightLowerLegAngle 0.10181818181818274
+  rightFootAngle 0.30545454545454814
+  leftLegAngle -1.0609090909090928
+  leftLowerLegAngle 1.6745454545454554
+  leftFootAngle -0.03181818181818273
+  rightArmAngle -0.21545454545454884
+  rightLowerArmAngle -0.5036363636363654
+  rightHandAngle -0.2281818181818187
+  leftArmAngle 0.3809090909090956
+  leftLowerArmAngle -0.5527272727272762
+  leftHandAngle 0.08727272727272804
+  headAngle 0.024545454545453965
+}
+DEF Ped1 Pedestrian {
+  translation -3.82 1.33909 7.23
+  name "pedestrian(9)"
+  controllerArgs [
+    "--trajectory=0 3, 0 -4"
+    "--speed=1.0"
+  ]
+  rightLegAngle 0.20727272727272805
+  rightLowerLegAngle 0.10181818181818274
+  rightFootAngle 0.30545454545454814
+  leftLegAngle -1.0609090909090928
+  leftLowerLegAngle 1.6745454545454554
+  leftFootAngle -0.03181818181818273
+  rightArmAngle -0.21545454545454884
+  rightLowerArmAngle -0.5036363636363654
+  rightHandAngle -0.2281818181818187
+  leftArmAngle 0.3809090909090956
+  leftLowerArmAngle -0.5527272727272762
+  leftHandAngle 0.08727272727272804
+  headAngle 0.024545454545453965
+}
+DEF Ped1 Pedestrian {
+  translation -0.35 1.33909 8.23
+  name "pedestrian(10)"
+  controllerArgs [
+    "--trajectory=0 3, 0 -4"
+    "--speed=1.0"
+  ]
+  rightLegAngle 0.20727272727272805
+  rightLowerLegAngle 0.10181818181818274
+  rightFootAngle 0.30545454545454814
+  leftLegAngle -1.0609090909090928
+  leftLowerLegAngle 1.6745454545454554
+  leftFootAngle -0.03181818181818273
+  rightArmAngle -0.21545454545454884
+  rightLowerArmAngle -0.5036363636363654
+  rightHandAngle -0.2281818181818187
+  leftArmAngle 0.3809090909090956
+  leftLowerArmAngle -0.5527272727272762
+  leftHandAngle 0.08727272727272804
+  headAngle 0.024545454545453965
+}
+DEF Ped1 Pedestrian {
+  translation -8.24 1.33909 4.18
+  name "pedestrian(11)"
+  controllerArgs [
+    "--trajectory=0 3, 0 -4"
+    "--speed=1.0"
+  ]
+  rightLegAngle 0.20727272727272805
+  rightLowerLegAngle 0.10181818181818274
+  rightFootAngle 0.30545454545454814
+  leftLegAngle -1.0609090909090928
+  leftLowerLegAngle 1.6745454545454554
+  leftFootAngle -0.03181818181818273
+  rightArmAngle -0.21545454545454884
+  rightLowerArmAngle -0.5036363636363654
+  rightHandAngle -0.2281818181818187
+  leftArmAngle 0.3809090909090956
+  leftLowerArmAngle -0.5527272727272762
+  leftHandAngle 0.08727272727272804
+  headAngle 0.024545454545453965
+}
+DEF Ped1 Pedestrian {
+  translation -7.24 1.33909 -5.82
+  name "pedestrian(12)"
   controllerArgs [
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
@@ -55,7 +181,7 @@ DEF Ped1 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped2 Pedestrian {
-  translation 3.3736544032709412 1.2454545454545454 -2.6263455967290588
+  translation 6 1.24545 -1
   rotation 0 1 0 -2.356194490192345
   name "pedestrian(1)"
   controllerArgs [
@@ -77,16 +203,163 @@ DEF Ped2 Pedestrian {
   leftHandAngle 0.09090909090909137
   headAngle 0.13909090909090888
 }
+DEF Ped2 Pedestrian {
+  translation 1.27948 1.24545 -5.72053
+  rotation 0 1 0 -2.356194490192345
+  name "pedestrian(3)"
+  controllerArgs [
+    "--speed=1.0"
+    "--trajectory=-2 -3, -2 5"
+  ]
+  shirtColor 0.466667 0.0980392 0.458824
+  rightLegAngle -0.11818181818181603
+  rightLowerLegAngle 0.8818181818181792
+  rightFootAngle 0.006363636363636044
+  leftLegAngle -0.623636363636364
+  leftLowerLegAngle 0.68090909090909
+  leftFootAngle -0.16363636363636444
+  rightArmAngle -0.6200000000000006
+  rightLowerArmAngle -0.09545454545454593
+  rightHandAngle 0.06545454545454518
+  leftArmAngle 0.6018181818181823
+  leftLowerArmAngle -0.42909090909090886
+  leftHandAngle 0.09090909090909137
+  headAngle 0.13909090909090888
+}
+DEF Ped2 Pedestrian {
+  translation 0.822827 1.24545 3.66578
+  rotation 0 1 0 -2.356194490192345
+  name "pedestrian(4)"
+  controllerArgs [
+    "--speed=1.0"
+    "--trajectory=-2 -3, -2 5"
+  ]
+  shirtColor 0.466667 0.0980392 0.458824
+  rightLegAngle -0.11818181818181603
+  rightLowerLegAngle 0.8818181818181792
+  rightFootAngle 0.006363636363636044
+  leftLegAngle -0.623636363636364
+  leftLowerLegAngle 0.68090909090909
+  leftFootAngle -0.16363636363636444
+  rightArmAngle -0.6200000000000006
+  rightLowerArmAngle -0.09545454545454593
+  rightHandAngle 0.06545454545454518
+  leftArmAngle 0.6018181818181823
+  leftLowerArmAngle -0.42909090909090886
+  leftHandAngle 0.09090909090909137
+  headAngle 0.13909090909090888
+}
+DEF Ped2 Pedestrian {
+  translation -2.05216 1.24545 -2.65984
+  rotation 0 1 0 -2.356194490192345
+  name "pedestrian(5)"
+  controllerArgs [
+    "--speed=1.0"
+    "--trajectory=-2 -3, -2 5"
+  ]
+  shirtColor 0.466667 0.0980392 0.458824
+  rightLegAngle -0.11818181818181603
+  rightLowerLegAngle 0.8818181818181792
+  rightFootAngle 0.006363636363636044
+  leftLegAngle -0.623636363636364
+  leftLowerLegAngle 0.68090909090909
+  leftFootAngle -0.16363636363636444
+  rightArmAngle -0.6200000000000006
+  rightLowerArmAngle -0.09545454545454593
+  rightHandAngle 0.06545454545454518
+  leftArmAngle 0.6018181818181823
+  leftLowerArmAngle -0.42909090909090886
+  leftHandAngle 0.09090909090909137
+  headAngle 0.13909090909090888
+}
+DEF Ped2 Pedestrian {
+  translation 3.03491 1.24545 2.42724
+  rotation 0 1 0 -2.356194490192345
+  name "pedestrian(6)"
+  controllerArgs [
+    "--speed=1.0"
+    "--trajectory=-2 -3, -2 5"
+  ]
+  shirtColor 0.466667 0.0980392 0.458824
+  rightLegAngle -0.11818181818181603
+  rightLowerLegAngle 0.8818181818181792
+  rightFootAngle 0.006363636363636044
+  leftLegAngle -0.623636363636364
+  leftLowerLegAngle 0.68090909090909
+  leftFootAngle -0.16363636363636444
+  rightArmAngle -0.6200000000000006
+  rightLowerArmAngle -0.09545454545454593
+  rightHandAngle 0.06545454545454518
+  leftArmAngle 0.6018181818181823
+  leftLowerArmAngle -0.42909090909090886
+  leftHandAngle 0.09090909090909137
+  headAngle 0.13909090909090888
+}
 Pedestrian {
-  translation 5 1.27 2
   rotation 0 1 0 3.14159
   name "pedestrian(2)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
+Pedestrian {
+  translation 2.62 1.27 2.3
+  rotation 0 1 0 3.14159
+  name "pedestrian(20)"
+  shirtColor 0.6 0.4 0.35
+  pantsColor 0.18 0.18 0.23
+}
+Pedestrian {
+  translation 1 1.27 -3.39
+  rotation 0 1 0 3.14159
+  name "pedestrian(13)"
+  shirtColor 0.6 0.4 0.35
+  pantsColor 0.18 0.18 0.23
+}
+Pedestrian {
+  translation 3.05 1.27 -7.72
+  rotation 0 1 0 3.14159
+  name "pedestrian(14)"
+  shirtColor 0.6 0.4 0.35
+  pantsColor 0.18 0.18 0.23
+}
+Pedestrian {
+  translation -3.04 1.27 -7.28
+  rotation 0 1 0 3.14159
+  name "pedestrian(15)"
+  shirtColor 0.6 0.4 0.35
+  pantsColor 0.18 0.18 0.23
+}
+Pedestrian {
+  translation -2.04 1.27 -4.38
+  rotation 0 1 0 3.14159
+  name "pedestrian(16)"
+  shirtColor 0.6 0.4 0.35
+  pantsColor 0.18 0.18 0.23
+}
+Pedestrian {
+  translation -1.04 1.27 4.39
+  rotation 0 1 0 3.14159
+  name "pedestrian(17)"
+  shirtColor 0.6 0.4 0.35
+  pantsColor 0.18 0.18 0.23
+}
+Pedestrian {
+  translation -4.31 1.27 3.3
+  rotation 0 1 0 3.14159
+  name "pedestrian(18)"
+  shirtColor 0.6 0.4 0.35
+  pantsColor 0.18 0.18 0.23
+}
+Pedestrian {
+  translation -6.7 1.27 -0.710007
+  rotation 0 1 0 3.14159
+  name "pedestrian(19)"
+  shirtColor 0.6 0.4 0.35
+  pantsColor 0.18 0.18 0.23
+}
 Robot {
-  translation 1.9595363624181523 0.1598084861999423 -0.047976077468961896
-  rotation 0.09545033899331115 0.7042600229834363 0.7034963061832179 -2.96337853356745
+  translation 5 0.159808 0
+  rotation 0 0.7078803601535063 0.7063323549922813 3.13513
   children [
     Camera {
       translation 0.19 3.12151e-07 0.29
@@ -695,7 +968,7 @@ Robot {
             ]
             endPoint Solid {
               translation 0.00533 0.2 -0.04468
-              rotation 0 -1 0 0.24683287492453945
+              rotation 0 -1 0 0.24683287492453765
               children [
                 Connector {
                   translation 0.21 0 0

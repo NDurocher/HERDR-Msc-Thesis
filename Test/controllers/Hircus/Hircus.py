@@ -4,23 +4,25 @@ from torchvision import transforms
 from torchvision.utils import save_image
 import sys
 import numpy as np
-import optparse
-import math
 from transforms3d.euler import mat2euler
 from datetime import datetime
+from matplotlib import pyplot as plt
+from random import uniform
 
 sys.path.insert(1, '/Users/NathanDurocher/Documents/GitHub/HERDR/src')
-from Badgrnet import BadgrNet 
-from actionplanner import BadgrPlan
+from Badgrnet import HERDR 
+from actionplanner import HERDRPlan
 
-WHEEL_RADIUS = 0.16 # m
+WHEEL_RADIUS = 0.16  # m
 WEBOTS_STEP_TIME = 100
 DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME / 2) 
 SCALE = 1000
 GNSS_RATE = 1
-HRZ=5
-BATCH=150
-GOAL = np.broadcast_to([-4.0, 2.0], (BATCH, 2)).copy()
+HRZ = 20
+BATCH = 50
+GOAL = [uniform(-6, -2), uniform(-5, 5)]
+print(GOAL)
+GOAL = np.broadcast_to(GOAL, (BATCH, 2)).copy()
 
 class Hircus (Supervisor):
     """Control a Hircus PROTO."""
@@ -53,9 +55,9 @@ class Hircus (Supervisor):
 
         self.key = 0 
         
-        # self.net = BadgrNet(Horizon=HRZ, Batch=BATCH)
-        # self.net = torch.load('Herdr_1.pth', map_location=torch.device('cpu'))
-        self.planner = BadgrPlan(Horizon=HRZ, vel_init=2.5)
+        if not train:
+            self.net = torch.load('Herdr_1_LSTM_cross.pth', map_location=torch.device('cpu'))
+        self.planner = HERDRPlan(Horizon=HRZ, vel_init=0.7)
         
     def load_webots_devices(self):
         self.left_motor = self.getDevice('left_wheel')
@@ -100,14 +102,13 @@ class Hircus (Supervisor):
         self.rear_steer.setVelocity(0)
         
     def update_motors(self, speed, steer):
-        
-        self.left_motor.setVelocity(speed)
-        self.right_motor.setVelocity(speed)
-        self.front_motor.setVelocity(speed)
-        self.rear_motor.setVelocity(speed)
+        self.left_motor.setVelocity(speed/WHEEL_RADIUS)
+        self.right_motor.setVelocity(speed/WHEEL_RADIUS)
+        self.front_motor.setVelocity(speed/WHEEL_RADIUS)
+        self.rear_motor.setVelocity(speed/WHEEL_RADIUS)
 
-        self.front_steer.setPosition(steer)
-        self.rear_steer.setPosition(-steer)
+        self.front_steer.setPosition(-steer)
+        self.rear_steer.setPosition(steer)
         self.front_steer.setVelocity(1)
         self.rear_steer.setVelocity(1)
         
@@ -122,104 +123,124 @@ class Hircus (Supervisor):
                 return 0   
     
     def reward(self):
-        self.event = np.zeros(BATCH)
+        self.event = np.zeros((HRZ, BATCH))
         self.pose = np.reshape(np.array(self.hircus.getPose()), [4, 4])
         state = self.calculate_position()
-        # print(state)
-        if self.train & self.recognize():
+        # plt.cla()
+        # plt.plot(state[:,:,2], state[:,:,0])
+        # plt.pause(0.01)
+        goalReward = np.sqrt(np.square((state[:, :, 0]-GOAL[:, 0])) + np.square((state[:, :, 2]-GOAL[:, 1])))
+
+        if self.train and self.recognize():
             ped_pos = np.array(self.obj.getPosition())
             self.obj.pose = np.reshape(np.array(self.obj.getPose()), [4, 4])
             ped_pos = np.broadcast_to(ped_pos, (HRZ, BATCH, 3)).copy()
-            ped_ori = self.obj.pose[0:3, 0:3]
+            ped_ori = mat2euler(self.obj.pose[0:3, 0:3])
             self.event = self.is_safe(state, ped_pos, ped_ori)
-            # event = np.sum(event, axis=0)
-        elif (not self.train) & self.recognize():
-            prediction = self.net(self.frame, self.actions)
-            # event = torch.sum(prediction,0)
-            print(self.event)
-            self.event = event.detach().numpy()
+        elif not self.train:
+            self.event = self.net(self.frame, self.actions)[:, :, 0].detach().unsqueeze(2)
+            # print(self.event.shape)
+            goalReward = torch.tensor(goalReward.transpose(1, 0)).unsqueeze(2)
+            # print(self.event)
         else:
-            self.event = np.ones((HRZ,BATCH))
-                
-        self.event = self.event/np.linalg.norm(self.event, ord=1)                        
-        goalReward = np.power( np.square((state[:,:,0]-GOAL[:,0])) + np.square((state[:,:,2]-GOAL[:,1])), 1)
-        # goalReward = np.sum(goalReward, axis=0)
-        # print(goalReward[0:6])
-        goalReward = 1 - goalReward/np.linalg.norm(goalReward, ord=1)
-        return 1.1*goalReward + self.event
+            self.event = np.ones((HRZ, BATCH))
+
+        reward = goalReward + 10 * self.event
+        # print(reward)
+        return reward
             
     def calculate_position(self):
         euler = np.array(mat2euler(self.pose[0:3, 0:3]))
         new_pos = np.array(self.hircus.getPosition())
         new_state = np.hstack((new_pos.T, euler[1]))
-        batch_state = np.broadcast_to(new_state, (BATCH,4)).copy()
+        batch_state = np.broadcast_to(new_state, (BATCH, 4)).copy()
         act = self.actions.numpy()
-        state_stack = np.empty((HRZ,BATCH,4))
+        state_stack = np.empty((HRZ, BATCH, 4))
         # Y axis is vertical, movement is in X-Z plane 
         # [X Y Z Phi]
         for i in range(0, HRZ):
-            batch_state[:,0] = batch_state[:,0] + (WEBOTS_STEP_TIME/SCALE)*np.cos(batch_state[:,3])*act[:,0,i]
-            batch_state[:,2] = batch_state[:,2] + (WEBOTS_STEP_TIME/SCALE)*np.sin(batch_state[:,3])*act[:,0,i]
-            batch_state[:,3] = batch_state[:,3] + (WEBOTS_STEP_TIME/SCALE)*act[:,1,i]*act[:,0,i]/self.wheelbase            
-            state_stack[i,:,:] = batch_state.copy()
+            batch_state[:, 0] = batch_state[:, 0] - (WEBOTS_STEP_TIME/SCALE)*np.cos(batch_state[:, 3])*act[:, i, 0]
+            batch_state[:, 2] = batch_state[:, 2] - (WEBOTS_STEP_TIME/SCALE)*np.sin(batch_state[:, 3])*act[:, i, 0]
+            batch_state[:, 3] = batch_state[:, 3] + (WEBOTS_STEP_TIME/SCALE) * act[:, i, 1] * 2 * \
+                                act[:, i, 0]/self.wheelbase
+            state_stack[i, :, :] = batch_state.copy()
         return state_stack
         
     def is_safe(self, state, ped_pos, ped_ori):
-        # Simple personal space model where [0,1]m is not safe, [1,2]m is less desirable and [2,inf] is safe
-        kz = ped_ori[0,0]*2.25
-        kx = ped_ori[0,2]*2.25
-        check = np.sqrt( np.square((state[:,:,0]-ped_pos[:,:,0]-kx))/1.5**2 + np.square((state[:,:,2]-ped_pos[:,:,2]-kz))/2.5**2) - 1
-        return check
+        # Simple personal space model with a ellipse of radii "a" & "b" and offset by "shift"
+        a = 1.5
+        b = 2.5
+        A = ped_ori[1] + np.pi/2
+        shift = 2
+        k = shift * np.cos(A)
+        h = - shift * np.sin(A)
+        first_term = np.square(
+            (state[:, :, 0] - ped_pos[:, :, 0] - h) * np.cos(A) + (state[:, :, 2] - ped_pos[:, :, 2] - k) * np.sin(
+                A)) / a ** 2
+        second_term = np.square(
+            (state[:, :, 0] - ped_pos[:, :, 0] - h) * np.sin(A) - (state[:, :, 2] - ped_pos[:, :, 2] - k) * np.cos(
+                A)) / b ** 2
+        check = (first_term + second_term) < 1
+        return check.astype(int)
     
     def reset(self):
         self.simulationReset()
         self.hircus.restartController()
         self.ped1.restartController()
         self.ped2.restartController()
+        self.reset_motor_speed()
         pass
         
     def Badgr(self):
         loader = transforms.Compose([transforms.ToTensor()])
-        while not self.step(WEBOTS_STEP_TIME) == -1:
-            frame = np.asarray(np.frombuffer(self.camera.getImage(), dtype=np.uint8))
-            frame = np.reshape(np.ravel(frame), (self.height,self.width,4), order='C')
-            frame = loader(frame[:,:,0:3]).float()
-            self.frame = frame.unsqueeze(0)
-            self.actions = self.planner.sample_new(batches=BATCH)
-            # self.actions = self.actions.unsqueeze(0)
-            
+        frame = np.asarray(np.frombuffer(self.camera.getImage(), dtype=np.uint8))
+        frame = np.reshape(np.ravel(frame), (self.height, self.width, 4), order='C')
+        frame = loader(frame[:, :, 0:3]).float()
+        self.frame = frame.unsqueeze(0)
+        self.frame = self.frame.repeat(BATCH, 1, 1, 1)
+        self.actions = self.planner.sample_new(batches=BATCH)
+        # self.actions = self.actions.unsqueeze(0)
+        if not self.train:
             r = self.reward()
-            # r = r/np.linalg.norm(r, ord=1)
-            best_r_arg = np.argmax(np.sum(r, axis=0))
-            
-            if self.recognize() & self.train:
-                self.now = datetime.now()
-                with open("Herdr_act.txt", "a") as f:
-                    to_save = self.actions[best_r_arg,:,:].detach().numpy()
-                    event_save = np.expand_dims(self.event[:,best_r_arg],0)
-                    
-                    # np.savetxt(f, to_save, '%2.5f', delimiter=',')
-                    # f.write("%s.png\n" % str(self.now))
-                    # np.savetxt(f, event_save, '%2.5f', delimiter=',')
-                    # save_image(frame, str(self.now) +'.png')
-                    
-            
-            self.update_motors(float(self.actions[best_r_arg,0,0]),float(self.actions[best_r_arg,1,0]))
-            r = torch.tensor(r).transpose(0,1)
-            self.planner.update_new(r, self.actions)
-            pos = self.hircus.getPosition()
-            if (abs(pos[0])  >= 9.5) | (abs(pos[2]) >= 9.5):
-                self.reset()
-            if self.getTime() > 50:
-                self.reset()
-            dist2goal = np.sqrt( (pos[0]-GOAL[0,0])**2 + (pos[2]-GOAL[0,1])**2 )
-            if dist2goal < 1.5:
-                # if within 1[m] of goal pause/end simulation
-                self.reset()
+            best_r_arg = torch.argmin(torch.sum(r, dim=1))
+            # print(r)
+        else:
+            r = self.reward()
+            best_r_arg = np.argmin(np.sum(r, axis=0))
+            # print(np.sum(r, axis=0))
+            r = torch.tensor(r).transpose(0, 1).unsqueeze(2).float()
+
+        if self.recognize() and self.train:
+            self.now = datetime.now()
+            with open("Herdr_act.txt", "a") as f:
+                to_save = self.actions[best_r_arg, :, :].detach().transpose(1, 0).numpy()
+                event_save = np.expand_dims(self.event[:, best_r_arg], 0)
+
+                # np.savetxt(f, to_save, '%2.5f', delimiter=',')
+                # f.write("%s.png\n" % str(self.now))
+                # np.savetxt(f, event_save, '%2.5f', delimiter=',')
+                # save_image(frame, '%s.png' % ("./images/"+str(self.now)))
+
+        # update motors and action mean
+        self.update_motors(float(self.actions[best_r_arg, 0, 0]), float(self.actions[best_r_arg, 0, 1]))
+        r = - r  # / torch.linalg.norm(r, ord=1, dim=0)
+        self.planner.update_new(r, self.actions)
+        # print(self.planner.mean)
+        pos = self.hircus.getPosition()
+        if np.sqrt(pos[0]**2 + pos[2]**2) >= 9.5:
+            self.reset()
+        if self.getTime() > 50:
+            self.reset()
+        dist2goal = np.sqrt((pos[0]-GOAL[0, 0])**2 + (pos[2]-GOAL[0, 1])**2)
+        if dist2goal < 0.5:
+            # if within 1[m] of goal pause/end simulation
+            print("Made it!!")
+            self.reset()
     
         
-controller = Hircus()
-controller.Badgr()
+controller = Hircus(train=True)
+while not controller.step(WEBOTS_STEP_TIME) == -1:
+    controller.Badgr()
 
 
 

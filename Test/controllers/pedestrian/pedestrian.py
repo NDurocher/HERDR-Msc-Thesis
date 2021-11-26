@@ -17,7 +17,7 @@ from controller import Supervisor
 
 import optparse
 import math
-from random import randint
+from random import uniform
 
 
 class Pedestrian (Supervisor):
@@ -77,8 +77,8 @@ class Pedestrian (Supervisor):
         else:
             self.time_step = int(self.getBasicTimeStep())
         point_list = options.trajectory.split(',')
-        x = [str(randint(-5, 2)) for p in range(0, 2)]
-        y = [str(randint(-2, 3)) for p in range(0, 2)]
+        x = [str(uniform(-6, 6)) for p in range(0, 2)]
+        y = [str(uniform(-4, 4)) for p in range(0, 2)]
         point_list = [''+x[0]+' '+y[0], x[1]+" "+y[0]] 
         self.number_of_waypoints = len(point_list)
         self.waypoints = []
