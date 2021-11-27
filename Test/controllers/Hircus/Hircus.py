@@ -24,6 +24,7 @@ GOAL = [uniform(-6, -2), uniform(-5, 5)]
 print(GOAL)
 GOAL = np.broadcast_to(GOAL, (BATCH, 2)).copy()
 
+
 class Hircus (Supervisor):
     """Control a Hircus PROTO."""
 
@@ -182,15 +183,8 @@ class Hircus (Supervisor):
                 A)) / b ** 2
         check = (first_term + second_term) < 1
         return check.astype(int)
-    
-    def reset(self):
-        self.simulationReset()
-        self.hircus.restartController()
-        self.ped1.restartController()
-        self.ped2.restartController()
-        self.reset_motor_speed()
-        pass
-        
+
+
     def Badgr(self):
         loader = transforms.Compose([transforms.ToTensor()])
         frame = np.asarray(np.frombuffer(self.camera.getImage(), dtype=np.uint8))
@@ -226,16 +220,7 @@ class Hircus (Supervisor):
         r = - r  # / torch.linalg.norm(r, ord=1, dim=0)
         self.planner.update_new(r, self.actions)
         # print(self.planner.mean)
-        pos = self.hircus.getPosition()
-        if np.sqrt(pos[0]**2 + pos[2]**2) >= 9.5:
-            self.reset()
-        if self.getTime() > 50:
-            self.reset()
-        dist2goal = np.sqrt((pos[0]-GOAL[0, 0])**2 + (pos[2]-GOAL[0, 1])**2)
-        if dist2goal < 0.5:
-            # if within 1[m] of goal pause/end simulation
-            print("Made it!!")
-            self.reset()
+
     
         
 controller = Hircus(train=True)

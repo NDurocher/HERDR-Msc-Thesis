@@ -40,9 +40,9 @@ class HERDRPlan:
             sequence.append(temp)
         sequence = torch.stack(sequence, dim=1)
 
-        # Clamp velocity between [0.1, 3] m/s
+        # Clamp velocity between [0.1, 1.59] m/s
         sequence[:, :, 0] = torch.where(sequence[:, :, 0] < 0.1, 0.1, sequence[:, :, 0])
-        sequence[:, :, 0] = torch.where(sequence[:, :, 0] > 3., 3., sequence[:, :, 0])
+        sequence[:, :, 0] = torch.where(sequence[:, :, 0] > 1.59, 1.59, sequence[:, :, 0])
         # Clamp angle between [-0.95, 0.95]
         sequence[:, :, 1] = torch.where(sequence[:, :, 1] < -0.95, -0.95, sequence[:, :, 1])
         sequence[:, :, 1] = torch.where(sequence[:, :, 1] > 0.95, 0.95, sequence[:, :, 1])
