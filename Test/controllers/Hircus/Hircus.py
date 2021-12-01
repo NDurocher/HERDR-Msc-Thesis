@@ -4,9 +4,11 @@ from torchvision import transforms
 from torchvision.utils import save_image
 import sys
 import numpy as np
+import pickle
 from transforms3d.euler import mat2euler
 from datetime import datetime
 from matplotlib import pyplot as plt
+from matplotlib.collections import LineCollection
 from random import uniform
 
 sys.path.insert(1, '/Users/NathanDurocher/Documents/GitHub/HERDR/src')
@@ -19,10 +21,11 @@ DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME / 2)
 SCALE = 1000
 GNSS_RATE = 1
 HRZ = 20
-BATCH = 50
+BATCH = 10
 GOAL = [uniform(-6, -2), uniform(-5, 5)]
 print(GOAL)
 GOAL = np.broadcast_to(GOAL, (BATCH, 2)).copy()
+WEBOTS_ROBOT_NAME = "CapraHircus"
 
 
 class Hircus (Supervisor):
@@ -34,11 +37,17 @@ class Hircus (Supervisor):
         # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
         # self.model.classes = [0]
         self.train = train
+        self.ped0 = self.getFromDef("Ped0")
         self.ped1 = self.getFromDef("Ped1")
         self.ped2 = self.getFromDef("Ped2")
         self.hircus = self.getSelf()
         self.pose = self.hircus.getPose()
         self.frame = None
+        self.obj = []
+        self.recog = []
+        self.actions = []
+        self.now = []
+        self.event = []
 
         self.load_webots_devices()
         self.enable_sensors(DEVICE_SAMPLE_TIME)
@@ -114,17 +123,19 @@ class Hircus (Supervisor):
         self.rear_steer.setVelocity(1)
         
     def recognize(self):
-            self.recog = self.camera.getRecognitionObjects()
-            if self.recog != []:
-                obj = self.camera.getRecognitionObjects()
-                self.obj = self.getFromId(obj[0].get_id())
-                # print(self.obj)
-                return 1
-            else: 
-                return 0   
+        self.recog = self.camera.getRecognitionObjects()
+        if self.recog:
+            self.obj = []
+            obj = self.camera.getRecognitionObjects()
+            for node in obj:
+                self.obj.append(self.getFromId(node.get_id()))
+            # print(self.obj)
+            return 1
+        else:
+            return 0
     
     def reward(self):
-        self.event = np.zeros((HRZ, BATCH))
+        self.event = torch.zeros((HRZ, BATCH))
         self.pose = np.reshape(np.array(self.hircus.getPose()), [4, 4])
         state = self.calculate_position()
         # plt.cla()
@@ -133,21 +144,22 @@ class Hircus (Supervisor):
         goalReward = np.sqrt(np.square((state[:, :, 0]-GOAL[:, 0])) + np.square((state[:, :, 2]-GOAL[:, 1])))
 
         if self.train and self.recognize():
-            ped_pos = np.array(self.obj.getPosition())
-            self.obj.pose = np.reshape(np.array(self.obj.getPose()), [4, 4])
-            ped_pos = np.broadcast_to(ped_pos, (HRZ, BATCH, 3)).copy()
-            ped_ori = mat2euler(self.obj.pose[0:3, 0:3])
-            self.event = self.is_safe(state, ped_pos, ped_ori)
+            for ped in self.obj:
+                ped_pos = np.array(ped.getPosition())
+                ped.pose = np.reshape(np.array(ped.getPose()), [4, 4])
+                ped_pos = np.broadcast_to(ped_pos, (HRZ, BATCH, 3)).copy()
+                ped_ori = mat2euler(ped.pose[0:3, 0:3])
+                self.event = torch.logical_or(self.is_safe(state, ped_pos, ped_ori), self.event)
+            self.event = self.event.float()
+            goalReward = torch.tensor(goalReward)
         elif not self.train:
             self.event = self.net(self.frame, self.actions)[:, :, 0].detach().unsqueeze(2)
-            # print(self.event.shape)
             goalReward = torch.tensor(goalReward.transpose(1, 0)).unsqueeze(2)
-            # print(self.event)
         else:
-            self.event = np.ones((HRZ, BATCH))
-
-        reward = goalReward + 10 * self.event
-        # print(reward)
+            self.event = torch.zeros((HRZ, BATCH))
+            goalReward = torch.tensor(goalReward)
+        event_gain = goalReward.mean()*0.9
+        reward = goalReward + event_gain * self.event
         return reward
             
     def calculate_position(self):
@@ -182,10 +194,50 @@ class Hircus (Supervisor):
             (state[:, :, 0] - ped_pos[:, :, 0] - h) * np.sin(A) - (state[:, :, 2] - ped_pos[:, :, 2] - k) * np.cos(
                 A)) / b ** 2
         check = (first_term + second_term) < 1
-        return check.astype(int)
+        return torch.tensor(check, dtype=torch.int)
 
+    def reset(self):
+        # self.simulationSetMode(0)
+        self.simulationReset()
+        self.ped1.restartController()
+        self.ped2.restartController()
+        self.hircus.restartController()
+        pass
 
-    def Badgr(self):
+    def checkreset(self):
+        pos = self.hircus.getPosition()
+        if np.sqrt(pos[0] ** 2 + pos[2] ** 2) >= 9.5:
+            self.reset()
+        if self.getTime() > 50:
+            self.reset()
+        dist2goal = np.sqrt((pos[0] - GOAL[0, 0]) ** 2 + (pos[2] - GOAL[0, 1]) ** 2)
+        if dist2goal < 0.75:
+            # if within 1[m] of goal pause/end simulation
+            print("Made it!!")
+            self.reset()
+
+    @staticmethod
+    def log(hircuspos, pedlist):
+        dist_list = []
+        for person in pedlist:
+            pos = person.getPosition()
+            dist = np.sqrt((hircuspos[0]-pos[0])**2 + (hircuspos[2]-pos[2])**2)
+            dist_list.append(dist)
+        avg_dist = np.asarray(dist_list).mean()
+        return avg_dist
+
+    def todataset(self, r_arg):
+        if self.recognize() and self.train:
+            self.now = datetime.now()
+            with open("Herdr_act.txt", "a") as f:
+                to_save = self.actions[r_arg, :, :].detach().transpose(1, 0).numpy()
+                event_save = np.expand_dims(self.event[:, r_arg], 0)
+                np.savetxt(f, to_save, '%2.5f', delimiter=',')
+                f.write("%s.png\n" % str(self.now))
+                np.savetxt(f, event_save, '%2.5f', delimiter=',')
+                save_image(self.frame[0], '%s.png' % ("./images/"+str(self.now)))
+
+    def Herdr(self):
         loader = transforms.Compose([transforms.ToTensor()])
         frame = np.asarray(np.frombuffer(self.camera.getImage(), dtype=np.uint8))
         frame = np.reshape(np.ravel(frame), (self.height, self.width, 4), order='C')
@@ -193,50 +245,46 @@ class Hircus (Supervisor):
         self.frame = frame.unsqueeze(0)
         self.frame = self.frame.repeat(BATCH, 1, 1, 1)
         self.actions = self.planner.sample_new(batches=BATCH)
-        # self.actions = self.actions.unsqueeze(0)
+        r = self.reward()
         if not self.train:
-            r = self.reward()
             best_r_arg = torch.argmin(torch.sum(r, dim=1))
-            # print(r)
         else:
-            r = self.reward()
-            best_r_arg = np.argmin(np.sum(r, axis=0))
-            # print(np.sum(r, axis=0))
-            r = torch.tensor(r).transpose(0, 1).unsqueeze(2).float()
+            best_r_arg = torch.argmin(torch.sum(r, dim=0))
+            r = r.transpose(0, 1).unsqueeze(2)
 
-        if self.recognize() and self.train:
-            self.now = datetime.now()
-            with open("Herdr_act.txt", "a") as f:
-                to_save = self.actions[best_r_arg, :, :].detach().transpose(1, 0).numpy()
-                event_save = np.expand_dims(self.event[:, best_r_arg], 0)
-
-                # np.savetxt(f, to_save, '%2.5f', delimiter=',')
-                # f.write("%s.png\n" % str(self.now))
-                # np.savetxt(f, event_save, '%2.5f', delimiter=',')
-                # save_image(frame, '%s.png' % ("./images/"+str(self.now)))
+        # Save To DataSet
+        # self.todataset(best_r_arg)
 
         # update motors and action mean
         self.update_motors(float(self.actions[best_r_arg, 0, 0]), float(self.actions[best_r_arg, 0, 1]))
-        r = - r  # / torch.linalg.norm(r, ord=1, dim=0)
+        r = - r
         self.planner.update_new(r, self.actions)
-        # print(self.planner.mean)
+        self.checkreset()
 
-    
-        
+
 controller = Hircus(train=True)
+Pedlist = [controller.ped0, controller.ped1, controller.ped2]
+Hircus_traj = []
+Avg_dist = []
 while not controller.step(WEBOTS_STEP_TIME) == -1:
-    controller.Badgr()
+    controller.Herdr()
+    Hircuspos = controller.hircus.getPosition()
+    Hircus_traj.append(Hircuspos)
+    Avg_dist.append(controller.log(Hircuspos, Pedlist))
+to_store = [Hircus_traj, Avg_dist]
+HERDRfile = open('mertics', 'ab')
+pickle.dump(to_store, HERDRfile)
 
-
-
-
-
-
-
-    ####### Might not need
-    # def recognizeYolo(self):
-        # while not self.step(self.time_step) == -1:
-            # img = np.asarray(np.frombuffer(self.camera.getImage(), dtype=np.uint8))
-            # frame = np.reshape(np.ravel(img), (self.height,self.width,4), order='C')
-            # results = self.model(frame)    
-
+Avg_dist = np.asarray(Avg_dist)
+Ht_np = np.asarray(Hircus_traj)
+points = np.array([Ht_np[:, 2], Ht_np[:, 0]]).T.reshape(-1, 1, 2)
+segments = np.concatenate([points[:-1], points[1:]], axis=1)
+lc = LineCollection(segments, cmap=plt.get_cmap('magma'), norm=plt.Normalize(Avg_dist.min(), Avg_dist.max()))
+lc.set_array(Avg_dist)
+lc.set_linewidth(3)
+plt.gca().add_collection(lc)
+plt.xlim(-10, 10)
+plt.ylim(-10, 10)
+plt.axis('equal')
+plt.show()
+# controller.hircus.restartController()

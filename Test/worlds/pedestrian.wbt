@@ -17,8 +17,8 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.5459572932217758 0.6120069006272514 0.5721697191940319 4.198352674997464
-  position -0.6692104475492884 33.94615611620344 -0.6004142212688037
+  orientation 0.557876365903734 0.60679532139743 0.5661920153942765 4.215428543103013
+  position -0.6499816147307773 33.659543326078534 -0.5994527043219797
   near 1
   follow "CapraHircus"
   followType "None"
@@ -296,55 +296,55 @@ DEF Ped2 Pedestrian {
   leftHandAngle 0.09090909090909137
   headAngle 0.13909090909090888
 }
-Pedestrian {
+DEF Ped0 Pedestrian {
   rotation 0 1 0 3.14159
   name "pedestrian(2)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-Pedestrian {
+DEF Ped0 Pedestrian {
   translation 2.62 1.27 2.3
   rotation 0 1 0 3.14159
   name "pedestrian(20)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-Pedestrian {
+DEF Ped0 Pedestrian {
   translation 1 1.27 -3.39
   rotation 0 1 0 3.14159
   name "pedestrian(13)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-Pedestrian {
+DEF Ped0 Pedestrian {
   translation -3.04 1.27 -7.28
   rotation 0 1 0 3.14159
   name "pedestrian(15)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-Pedestrian {
+DEF Ped0 Pedestrian {
   translation -2.04 1.27 -4.38
   rotation 0 1 0 3.14159
   name "pedestrian(16)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-Pedestrian {
+DEF Ped0 Pedestrian {
   translation -1.04 1.27 4.39
   rotation 0 1 0 3.14159
   name "pedestrian(17)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-Pedestrian {
+DEF Ped0 Pedestrian {
   translation -4.31 1.27 3.3
   rotation 0 1 0 3.14159
   name "pedestrian(18)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-Pedestrian {
+DEF Ped0 Pedestrian {
   translation -6.7 1.27 -0.710007
   rotation 0 1 0 3.14159
   name "pedestrian(19)"
@@ -363,7 +363,7 @@ DEF Hircus Robot {
       width 320
       height 240
       recognition Recognition {
-        maxObjects 1
+        maxObjects 3
       }
     }
     Gyro {
@@ -1021,7 +1021,7 @@ DEF Hircus Robot {
   }
   physics Physics {
   }
-  controller "Hircus"
+  controller "<extern>"
   supervisor TRUE
 }
 Robot {
@@ -1350,6 +1350,5 @@ Robot {
     1 1 1
     0.24 0.25 0.5
   ]
-  controller ""
   supervisor TRUE
 }
