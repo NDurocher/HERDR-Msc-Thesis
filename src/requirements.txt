@@ -1,0 +1,6 @@
+torch~=1.10.0
+torchvision~=0.10.1
+imutils~=0.5.4
+numpy~=1.21.2
+transforms3d~=0.3.1
+matplotlib~=3.4.3
