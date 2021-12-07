@@ -17,8 +17,8 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.557876365903734 0.60679532139743 0.5661920153942765 4.215428543103013
-  position -0.6499816147307773 33.659543326078534 -0.5994527043219797
+  orientation 0.5697622747589243 0.5895361220933791 0.572554024532739 4.198856448639825
+  position -0.5840988313072828 37.79066289258131 -0.25098278149272923
   near 1
   follow "CapraHircus"
   followType "None"
@@ -55,7 +55,7 @@ DEF Ped1 Pedestrian {
   leftHandAngle 0.08727272727272804
   headAngle 0.024545454545453965
 }
-DEF Ped1 Pedestrian {
+DEF Ped2 Pedestrian {
   translation 2.56 1.33909 -3.49
   name "pedestrian(7)"
   controllerArgs [
@@ -76,7 +76,7 @@ DEF Ped1 Pedestrian {
   leftHandAngle 0.08727272727272804
   headAngle 0.024545454545453965
 }
-DEF Ped1 Pedestrian {
+DEF Ped3 Pedestrian {
   translation -4.82 1.33909 -2.49
   name "pedestrian(8)"
   controllerArgs [
@@ -97,7 +97,7 @@ DEF Ped1 Pedestrian {
   leftHandAngle 0.08727272727272804
   headAngle 0.024545454545453965
 }
-DEF Ped1 Pedestrian {
+DEF Ped4 Pedestrian {
   translation -3.82 1.33909 7.23
   name "pedestrian(9)"
   controllerArgs [
@@ -118,7 +118,7 @@ DEF Ped1 Pedestrian {
   leftHandAngle 0.08727272727272804
   headAngle 0.024545454545453965
 }
-DEF Ped1 Pedestrian {
+DEF Ped5 Pedestrian {
   translation -0.35 1.33909 8.23
   name "pedestrian(10)"
   controllerArgs [
@@ -139,7 +139,7 @@ DEF Ped1 Pedestrian {
   leftHandAngle 0.08727272727272804
   headAngle 0.024545454545453965
 }
-DEF Ped1 Pedestrian {
+DEF Ped6 Pedestrian {
   translation -8.24 1.33909 4.18
   name "pedestrian(11)"
   controllerArgs [
@@ -160,7 +160,7 @@ DEF Ped1 Pedestrian {
   leftHandAngle 0.08727272727272804
   headAngle 0.024545454545453965
 }
-DEF Ped1 Pedestrian {
+DEF Ped7 Pedestrian {
   translation -7.24 1.33909 -5.82
   name "pedestrian(12)"
   controllerArgs [
@@ -181,7 +181,7 @@ DEF Ped1 Pedestrian {
   leftHandAngle 0.08727272727272804
   headAngle 0.024545454545453965
 }
-DEF Ped2 Pedestrian {
+DEF Ped8 Pedestrian {
   translation 6 1.24545 -1
   rotation 0 1 0 -2.356194490192345
   name "pedestrian(1)"
@@ -204,7 +204,7 @@ DEF Ped2 Pedestrian {
   leftHandAngle 0.09090909090909137
   headAngle 0.13909090909090888
 }
-DEF Ped2 Pedestrian {
+DEF Ped9 Pedestrian {
   translation 1.27948 1.24545 -5.72053
   rotation 0 1 0 -2.356194490192345
   name "pedestrian(3)"
@@ -227,7 +227,7 @@ DEF Ped2 Pedestrian {
   leftHandAngle 0.09090909090909137
   headAngle 0.13909090909090888
 }
-DEF Ped2 Pedestrian {
+DEF Ped10 Pedestrian {
   translation 0.822827 1.24545 3.66578
   rotation 0 1 0 -2.356194490192345
   name "pedestrian(4)"
@@ -250,7 +250,7 @@ DEF Ped2 Pedestrian {
   leftHandAngle 0.09090909090909137
   headAngle 0.13909090909090888
 }
-DEF Ped2 Pedestrian {
+DEF Ped11 Pedestrian {
   translation -2.05216 1.24545 -2.65984
   rotation 0 1 0 -2.356194490192345
   name "pedestrian(5)"
@@ -273,7 +273,7 @@ DEF Ped2 Pedestrian {
   leftHandAngle 0.09090909090909137
   headAngle 0.13909090909090888
 }
-DEF Ped2 Pedestrian {
+DEF Ped12 Pedestrian {
   translation 3.03491 1.24545 2.42724
   rotation 0 1 0 -2.356194490192345
   name "pedestrian(6)"
@@ -296,48 +296,48 @@ DEF Ped2 Pedestrian {
   leftHandAngle 0.09090909090909137
   headAngle 0.13909090909090888
 }
-DEF Ped0 Pedestrian {
+DEF Ped13 Pedestrian {
   rotation 0 1 0 3.14159
   name "pedestrian(2)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-DEF Ped0 Pedestrian {
+DEF Ped14 Pedestrian {
   translation 2.62 1.27 2.3
   rotation 0 1 0 3.14159
   name "pedestrian(20)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-DEF Ped0 Pedestrian {
+DEF Ped15 Pedestrian {
   translation 1 1.27 -3.39
   rotation 0 1 0 3.14159
   name "pedestrian(13)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-DEF Ped0 Pedestrian {
+DEF Ped16 Pedestrian {
   translation -3.04 1.27 -7.28
   rotation 0 1 0 3.14159
   name "pedestrian(15)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-DEF Ped0 Pedestrian {
+DEF Ped17 Pedestrian {
   translation -2.04 1.27 -4.38
   rotation 0 1 0 3.14159
   name "pedestrian(16)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-DEF Ped0 Pedestrian {
+DEF Ped18 Pedestrian {
   translation -1.04 1.27 4.39
   rotation 0 1 0 3.14159
   name "pedestrian(17)"
   shirtColor 0.6 0.4 0.35
   pantsColor 0.18 0.18 0.23
 }
-DEF Ped0 Pedestrian {
+DEF Ped19 Pedestrian {
   translation -4.31 1.27 3.3
   rotation 0 1 0 3.14159
   name "pedestrian(18)"
