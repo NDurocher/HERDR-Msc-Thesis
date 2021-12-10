@@ -60,7 +60,7 @@ class HERDR(nn.Module):
         out = self.model_out(out)
         out = out.transpose(1, 0)
         # out = out.transpose(2, 1)
-        # Output shape is (Batch, Horizon, 1))
+        # Output shape is (Batch, Horizon, 2))
         return out
 
 

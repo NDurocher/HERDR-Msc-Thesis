@@ -5,6 +5,7 @@ import pickle
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 from matplotlib.collections import LineCollection
+from time import sleep
 
 
 def plot_trajectory(traj, line_values, goal, label, traj_length, collision=-1):
@@ -29,12 +30,12 @@ def plot_trajectory(traj, line_values, goal, label, traj_length, collision=-1):
 
 
 def plot_actions(position, line_values, label):
-    plt.cla()
-    for pos, lv in zip(position.transpose(1, 0, 2), line_values.transpose(1, 0)):
+    plt.clf()
+    for pos, lv in zip(position.transpose(1, 0, 2), line_values):
         points = np.expand_dims(np.array([pos[:, 2], pos[:, 0]]).T, 1)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
         lc = LineCollection(segments, cmap=plt.get_cmap('magma'), norm=plt.Normalize(0, 1))
-        lc.set_array(lv)
+        lc.set_array(lv.T)
         lc.set_linewidth(3)
         plt.gca().add_collection(lc)
     plt.axis('equal')
@@ -45,7 +46,8 @@ def plot_actions(position, line_values, label):
     plt.ylabel('X-Position (m)')
     plt.title('Probability of Collision for n=%s Action Sequences' % label)
     plt.show()
-    # plt.pause(0.01)
+    # sleep(0.1)
+    plt.pause(0.01)
 
 
 

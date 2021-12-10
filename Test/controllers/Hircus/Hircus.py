@@ -12,7 +12,7 @@ from matplotlib.collections import LineCollection
 from random import uniform
 
 sys.path.insert(1, '/Users/NathanDurocher/Documents/GitHub/HERDR/src')
-from Badgrnet import HERDR 
+from Badgrnet import HERDR
 from actionplanner import HERDRPlan
 from metrics_utils import plot_trajectory, plot_actions
 
@@ -73,7 +73,7 @@ class Hircus (Supervisor):
         self.key = 0 
         
         if not train:
-            self.net = torch.load('Herdr_1_LSTM_cross.pth', map_location=torch.device('cpu'))
+            self.net = torch.load('Herdr_cross.pth', map_location=torch.device('cpu'))
         self.planner = HERDRPlan(Horizon=HRZ, vel_init=0.7)
         
     def load_webots_devices(self):
@@ -154,12 +154,12 @@ class Hircus (Supervisor):
                 ped_pos = np.broadcast_to(ped_pos, (HRZ, BATCH, 3)).copy()
                 ped_ori = mat2euler(ped.pose[0:3, 0:3])
                 self.event = torch.logical_or(self.is_safe(state, ped_pos, ped_ori), self.event)
-                # plot_actions(state, self.event.detach().numpy(), str(BATCH))
+                # plot_actions(state, self.event.detach().numpy().T, str(BATCH))
             self.event = self.event.float()
             goalReward = torch.tensor(goalReward)
         elif not self.train:
-            self.event = self.net(self.frame, self.actions)[:, :, 0].detach().unsqueeze(2)
-            plot_actions(state, self.event[:, :, 0].detach().numpy(), str(BATCH))
+            self.event = self.net(self.frame, self.actions).argmax(dim=2).detach().unsqueeze(2)
+            # plot_actions(state, self.event.squeeze(2).detach().numpy(), str(BATCH))
             goalReward = torch.tensor(goalReward.transpose(1, 0)).unsqueeze(2)
         else:
             self.event = torch.zeros((HRZ, BATCH))
@@ -220,7 +220,6 @@ class Hircus (Supervisor):
             # if within 1[m] of goal pause/end simulation
             print("Made it!!")
             self.reset()
-
 
     def todataset(self, r_arg):
         if self.recognize() and self.train:
