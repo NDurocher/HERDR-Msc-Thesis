@@ -7,11 +7,13 @@ import numpy as np
 import pickle
 from transforms3d.euler import mat2euler
 from datetime import datetime
+from pathlib import Path
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from random import uniform
 
-sys.path.insert(1, '/Users/NathanDurocher/Documents/GitHub/HERDR/src')
+dir_name = Path(Path.cwd()).parent.parent.parent
+sys.path.insert(1, str(dir_name)+'/src')
 from Badgrnet import HERDR
 from actionplanner import HERDRPlan
 from metrics_utils import plot_trajectory, plot_actions
@@ -23,8 +25,8 @@ SCALE = 1000
 GNSS_RATE = 1
 HRZ = 20
 BATCH = 50
-# GOAL = [uniform(-6, -2), uniform(-5, 5)]
-GOAL = [-5.574248218776289, -3.6391427577423574]
+GOAL = [uniform(-6, -2), uniform(-5, 5)]
+# GOAL = [-5.574248218776289, -3.6391427577423574]
 print(GOAL)
 GOAL = np.broadcast_to(GOAL, (BATCH, 2)).copy()
 WEBOTS_ROBOT_NAME = "CapraHircus"
@@ -44,9 +46,6 @@ class Hircus (Supervisor):
         while not self.getFromDef("Ped%d" % i) is None:
             self.peds.append(self.getFromDef("Ped%d" % i))
             i += 1
-        # self.ped0 = self.getFromDef("Ped0")
-        # self.ped1 = self.getFromDef("Ped1")
-        # self.ped2 = self.getFromDef("Ped2")
         self.hircus = self.getSelf()
         self.pose = self.hircus.getPose()
         self.frame = None
@@ -73,7 +72,7 @@ class Hircus (Supervisor):
         self.key = 0 
         
         if not train:
-            self.net = torch.load('Herdr_cross.pth', map_location=torch.device('cpu'))
+            self.net = torch.load('Herdr_cross14-12-2021--09 44 26.pth', map_location=torch.device('cpu'))
         self.planner = HERDRPlan(Horizon=HRZ, vel_init=0.7)
         
     def load_webots_devices(self):
@@ -119,6 +118,8 @@ class Hircus (Supervisor):
         self.rear_steer.setVelocity(0)
         
     def update_motors(self, speed, steer):
+        if np.isnan(speed) or np.isnan(steer):
+            self.reset()
         self.left_motor.setVelocity(speed/WHEEL_RADIUS)
         self.right_motor.setVelocity(speed/WHEEL_RADIUS)
         self.front_motor.setVelocity(speed/WHEEL_RADIUS)
@@ -154,7 +155,7 @@ class Hircus (Supervisor):
                 ped_pos = np.broadcast_to(ped_pos, (HRZ, BATCH, 3)).copy()
                 ped_ori = mat2euler(ped.pose[0:3, 0:3])
                 self.event = torch.logical_or(self.is_safe(state, ped_pos, ped_ori), self.event)
-                # plot_actions(state, self.event.detach().numpy().T, str(BATCH))
+            # plot_actions(state, self.event.detach().numpy().T, str(BATCH))
             self.event = self.event.float()
             goalReward = torch.tensor(goalReward)
         elif not self.train:
@@ -204,8 +205,8 @@ class Hircus (Supervisor):
 
     def reset(self):
         self.simulationReset()
-        # for ped in self.peds:
-            # ped.restartController()
+        for ped in self.peds:
+            ped.restartController()
         self.hircus.restartController()
         pass
 
@@ -247,11 +248,13 @@ class Hircus (Supervisor):
             best_r_arg = torch.argmin(torch.sum(r, dim=0))
             r = r.transpose(0, 1).unsqueeze(2)
 
-        # Save To DataSet
-        # self.todataset(best_r_arg)
-
-        # update motors and action mean
+        # update motors and check for nan values
         self.update_motors(float(self.actions[best_r_arg, 0, 0]), float(self.actions[best_r_arg, 0, 1]))
+
+        # Save To DataSet
+        self.todataset(best_r_arg)
+
+        # Update action mean and check for reset
         r = - r
         self.planner.update_new(r, self.actions)
         self.checkreset()
@@ -277,25 +280,25 @@ def pathlength(x, y):
     return L
 
 
-controller = Hircus(train=False)
-Hircus_traj = []
-Avg_dist = []
-in_collision = []
-unsafe = []  # "Score"
+controller = Hircus(train=True)
+# Hircus_traj = []
+# Avg_dist = []
+# in_collision = []
+# unsafe = []  # "Score"
 while not controller.step(WEBOTS_STEP_TIME) == -1:
     controller.Herdr()
-    Hircuspos = controller.hircus.getPosition()
-    Hircus_traj.append(Hircuspos)
-    out_log = controller.log(Hircuspos, controller.peds)
-    Avg_dist.append(out_log[0])
-    in_collision.append(out_log[1])
-    unsafe.append(torch.sum(controller.event))
+    # Hircuspos = controller.hircus.getPosition()
+    # Hircus_traj.append(Hircuspos)
+    # out_log = controller.log(Hircuspos, controller.peds)
+    # Avg_dist.append(out_log[0])
+    # in_collision.append(out_log[1])
+    # unsafe.append(torch.sum(controller.event))
 
-unsafe = np.asarray(unsafe)
-Avg_dist = np.asarray(Avg_dist)
-Hircus_traj = np.asarray(Hircus_traj)
-traj_length = pathlength(Hircus_traj[:, 0], Hircus_traj[:, 2])
-to_store = [Hircus_traj, traj_length, Avg_dist, in_collision]
+# unsafe = np.asarray(unsafe)
+# Avg_dist = np.asarray(Avg_dist)
+# Hircus_traj = np.asarray(Hircus_traj)
+# traj_length = pathlength(Hircus_traj[:, 0], Hircus_traj[:, 2])
+# to_store = [Hircus_traj, traj_length, Avg_dist, in_collision]
 # HERDRfile = open('mertics', 'ab')
 # pickle.dump(to_store, HERDRfile)
 

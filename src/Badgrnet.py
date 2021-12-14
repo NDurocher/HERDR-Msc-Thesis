@@ -16,23 +16,32 @@ class HERDR(nn.Module):
 
         self.obs_pre = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
+            nn.MaxPool2d(4, stride=2),
+            nn.LazyBatchNorm2d(),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
+            nn.MaxPool2d(4, stride=2),
+            nn.LazyBatchNorm2d(),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
+            nn.LazyBatchNorm2d(),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(68096, 256),
+            nn.LazyLinear(256),
+            nn.LazyBatchNorm1d(),
             nn.ReLU(),
-            nn.Linear(256, 128)
+            nn.Linear(256, 128),
+            # nn.LazyBatchNorm1d()
         )
         self.action_pre = nn.Sequential(
             nn.Linear(2, 16),
+            nn.LazyBatchNorm1d(),
             nn.ReLU(),
             nn.Linear(16, 16)
         )
         self.init_hidden = nn.Sequential(
             nn.Linear(128, 128),
+            nn.LazyBatchNorm1d(),
             nn.ReLU(),
             nn.Linear(128, 2 * self.rnndim)
         )
@@ -43,6 +52,7 @@ class HERDR(nn.Module):
             nn.Sigmoid()
         )
         self.lstm = nn.LSTM(input_size=16, hidden_size=self.rnndim, num_layers=1, batch_first=True)
+        self.softmax = nn.Softmax(dim=2)
 
     def forward(self, img, action):
         obs = self.obs_pre(img)
@@ -54,13 +64,14 @@ class HERDR(nn.Module):
         # put "time" first
         # action = action.transpose(2, 1)
         act = self.action_pre(action)
-        out, (_, _) = self.lstm(act, (Hx, Cx))
-        # put "time" first
+        out, (Hn, _) = self.lstm(act, (Hx, Cx))
+         # put "time" first
         out = out.transpose(1, 0)
         out = self.model_out(out)
+        # out = self.softmax(out)
         out = out.transpose(1, 0)
         # out = out.transpose(2, 1)
-        # Output shape is (Batch, Horizon, 2))
+        # Output shape is (Batch, Horizon, 1))
         return out
 
 
@@ -85,6 +96,7 @@ if __name__ == "__main__":
 
     # Take one image
     loader = transforms.Compose([transforms.ToTensor()])
+
     for i in range(0, 1):
     # while True:
         check, frame = video.read()
@@ -93,6 +105,7 @@ if __name__ == "__main__":
         print(frame.shape, actions.shape)
         r = model(frame, actions)
         print(r.flatten(start_dim=0, end_dim=1).shape)
+
         # torch.onnx.export(model,(frame, actions),'Herdr.onnx')
         # print("Prediction: ", r.detach())
         # print(r.shape, actions.shape)
