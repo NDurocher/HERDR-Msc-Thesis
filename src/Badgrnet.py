@@ -49,7 +49,7 @@ class HERDR(nn.Module):
             nn.Linear(self.rnndim, 32),
             nn.ReLU(),
             nn.Linear(32, 2),
-            nn.Sigmoid()
+            # nn.Sigmoid()
         )
         self.lstm = nn.LSTM(input_size=16, hidden_size=self.rnndim, num_layers=1, batch_first=True)
         self.softmax = nn.Softmax(dim=2)

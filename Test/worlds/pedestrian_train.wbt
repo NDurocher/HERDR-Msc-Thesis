@@ -187,7 +187,7 @@ DEF Hircus Robot {
       name "body_gyro"
     }
     InertialUnit {
-      rotation 1 0 0 0
+      rotation 0 0.7081062239009752 0.7061059238334584 -3.14
       name "gnss_heading"
     }
     GPS {

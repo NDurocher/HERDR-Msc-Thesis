@@ -14,6 +14,7 @@ def plot_trajectory(traj, line_values, goal, label, traj_length, collision=-1):
     lc = LineCollection(segments, cmap=plt.get_cmap('magma'), norm=plt.Normalize(0, line_values.max()))
     lc.set_array(line_values)
     lc.set_linewidth(3)
+    plt.figure(1)
     plt.gca().add_collection(lc)
     plt.scatter(goal[0, 1], goal[0, 0], s=600, c='red', marker="o")
     plt.xlim(-10, 10)
@@ -29,7 +30,7 @@ def plot_trajectory(traj, line_values, goal, label, traj_length, collision=-1):
     plt.show()
 
 
-def plot_actions(position, line_values, label):
+def plot_actions(position, line_values, label, GOAL):
     plt.clf()
     for pos, lv in zip(position.transpose(1, 0, 2), line_values):
         points = np.expand_dims(np.array([pos[:, 2], pos[:, 0]]).T, 1)
@@ -45,6 +46,7 @@ def plot_actions(position, line_values, label):
     plt.xlabel('Z-Position (m)')
     plt.ylabel('X-Position (m)')
     plt.title('Probability of Collision for n=%s Action Sequences' % label)
+    plt.scatter(GOAL[0, 1], GOAL[0, 0], s=50, c='red', marker="o")
     plt.show()
     # sleep(0.1)
     plt.pause(0.01)

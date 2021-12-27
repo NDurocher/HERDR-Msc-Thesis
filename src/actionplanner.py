@@ -18,7 +18,7 @@ class HERDRPlan:
         self.mean = torch.tensor(np.vstack((vel_mean, steer_mean)))
         # set guess for variance
         vel_cov = 0.1*torch.ones(self.horizon, 1)
-        steer_cov = 0.3*torch.ones(self.horizon, 1) # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
+        steer_cov = 0.3*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
         self.cov = torch.stack((vel_cov, steer_cov)).transpose(2, 0)
         # Define parameter to adjust for high weight updates
         self.gamma = gamma

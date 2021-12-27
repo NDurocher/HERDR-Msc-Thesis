@@ -1,16 +1,20 @@
+import pandas as pd
+
 from controller import Supervisor
 import torch
+from torch import nn
 from torchvision import transforms
 from torchvision.utils import save_image
 import sys
 import numpy as np
 import pickle
-from transforms3d.euler import mat2euler
+# from transforms3d.euler import mat2euler, axangle2euler
 from datetime import datetime
 from pathlib import Path
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from random import uniform
+from dataclasses import make_dataclass
 
 dir_name = Path(Path.cwd()).parent.parent.parent
 sys.path.insert(1, str(dir_name)+'/src')
@@ -30,6 +34,14 @@ GOAL = [uniform(-6, -2), uniform(-5, 5)]
 print(GOAL)
 GOAL = np.broadcast_to(GOAL, (BATCH, 2)).copy()
 WEBOTS_ROBOT_NAME = "CapraHircus"
+Ped_sample = make_dataclass("Sample", [("Actions", float), ("Ground_Truth", float), ("Image_Name", str)])
+
+
+def new_goal():
+    global GOAL
+    GOAL = np.broadcast_to([uniform(-6, 6), uniform(-6, 6)], (BATCH, 2)).copy()
+    print(GOAL[0])
+    pass
 
 
 class Hircus (Supervisor):
@@ -40,6 +52,7 @@ class Hircus (Supervisor):
         Supervisor.__init__(self)
         # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
         # self.model.classes = [0]
+        self.df = pd.DataFrame(columns=["Actions", "Ground_Truth", "Image_Name"])
         self.train = train
         self.peds = []
         i = 1
@@ -72,7 +85,11 @@ class Hircus (Supervisor):
         self.key = 0 
         
         if not train:
-            self.net = torch.load('Herdr_cross14-12-2021--09 44 26.pth', map_location=torch.device('cpu'))
+            self.net = torch.load('Herdr_cross14-12-2021--15 25 43.pth', map_location=torch.device('cpu'))
+            self.net.model_out = nn.Sequential(
+                self.net.model_out,
+                nn.Sigmoid()
+            )
         self.planner = HERDRPlan(Horizon=HRZ, vel_init=0.7)
         
     def load_webots_devices(self):
@@ -133,19 +150,18 @@ class Hircus (Supervisor):
     def recognize(self):
         self.recog = self.camera.getRecognitionObjects()
         if self.recog:
-            self.obj = []
             obj = self.camera.getRecognitionObjects()
-            for node in obj:
-                self.obj.append(self.getFromId(node.get_id()))
-            # print(self.obj)
+            self.obj = [self.getFromId(node.get_id()) for node in obj]
             return 1
         else:
             return 0
     
     def reward(self):
         self.event = torch.zeros((HRZ, BATCH))
+        robot_rot = self.gnss_heading_device.getRollPitchYaw()
+        # print(f"robot rot: {robot_rot}")
         self.pose = np.reshape(np.array(self.hircus.getPose()), [4, 4])
-        state = self.calculate_position()
+        state = self.calculate_position(robot_rot)
         goalReward = np.sqrt(np.square((state[:, :, 0]-GOAL[:, 0])) + np.square((state[:, :, 2]-GOAL[:, 1])))
 
         if self.train and self.recognize():
@@ -153,26 +169,27 @@ class Hircus (Supervisor):
                 ped_pos = np.array(ped.getPosition())
                 ped.pose = np.reshape(np.array(ped.getPose()), [4, 4])
                 ped_pos = np.broadcast_to(ped_pos, (HRZ, BATCH, 3)).copy()
-                ped_ori = mat2euler(ped.pose[0:3, 0:3])
+                SFRot = ped.getField("rotation").getSFRotation()
+                ped_ori = np.array(SFRot[0:3]) * SFRot[3]
                 self.event = torch.logical_or(self.is_safe(state, ped_pos, ped_ori), self.event)
-            # plot_actions(state, self.event.detach().numpy().T, str(BATCH))
+            # plot_actions(state, self.event.detach().numpy().T, str(BATCH), GOAL)
             self.event = self.event.float()
             goalReward = torch.tensor(goalReward)
         elif not self.train:
-            self.event = self.net(self.frame, self.actions).argmax(dim=2).detach().unsqueeze(2)
-            # plot_actions(state, self.event.squeeze(2).detach().numpy(), str(BATCH))
+            self.event = self.net(self.frame, self.actions)[:,:,0].detach().unsqueeze(2)
+            # plot_actions(state, self.event.squeeze(2).detach().numpy(), str(BATCH), GOAL)
             goalReward = torch.tensor(goalReward.transpose(1, 0)).unsqueeze(2)
         else:
             self.event = torch.zeros((HRZ, BATCH))
+            # plot_actions(state, self.event.detach().numpy().T, str(BATCH), GOAL)
             goalReward = torch.tensor(goalReward)
         event_gain = goalReward.mean()*0.9
         reward = goalReward + event_gain * self.event
         return reward
             
-    def calculate_position(self):
-        euler = np.array(mat2euler(self.pose[0:3, 0:3]))
+    def calculate_position(self, rot):
         new_pos = np.array(self.hircus.getPosition())
-        new_state = np.hstack((new_pos.T, euler[1]))
+        new_state = np.hstack((new_pos.T, -rot[2]))
         batch_state = np.broadcast_to(new_state, (BATCH, 4)).copy()
         act = self.actions.numpy()
         state_stack = np.empty((HRZ, BATCH, 4))
@@ -188,10 +205,10 @@ class Hircus (Supervisor):
         
     def is_safe(self, state, ped_pos, ped_ori):
         # Simple personal space model with an ellipse of radii "a" & "b" and offset by "shift"
-        a = 1.5
-        b = 2.5
-        A = ped_ori[1] + np.pi/2
-        shift = 2
+        a = 0.8
+        b = 1.5
+        A = - ped_ori[1]
+        shift = 1
         k = shift * np.cos(A)
         h = - shift * np.sin(A)
         first_term = np.square(
@@ -204,18 +221,20 @@ class Hircus (Supervisor):
         return torch.tensor(check, dtype=torch.int)
 
     def reset(self):
-        self.simulationReset()
-        for ped in self.peds:
-            ped.restartController()
+        # self.simulationReset()
+        # for ped in self.peds:
+        #     ped.restartController()
+        self.df.to_csv('Herdr_data.csv', mode='a', header=False)
         self.hircus.restartController()
+        # new_goal()
         pass
 
     def checkreset(self):
         pos = self.hircus.getPosition()
         if np.sqrt(pos[0] ** 2 + pos[2] ** 2) >= 9.5:
             self.reset()
-        if self.getTime() > 50:
-            self.reset()
+        # if self.getTime() > 50:
+        #     self.reset()
         dist2goal = np.sqrt((pos[0] - GOAL[0, 0]) ** 2 + (pos[2] - GOAL[0, 1]) ** 2)
         if dist2goal < 0.75:
             # if within 1[m] of goal pause/end simulation
@@ -225,13 +244,16 @@ class Hircus (Supervisor):
     def todataset(self, r_arg):
         if self.recognize() and self.train:
             self.now = datetime.now()
-            with open("Herdr_act.txt", "a") as f:
-                to_save = self.actions[r_arg, :, :].detach().transpose(1, 0).numpy()
-                event_save = np.expand_dims(self.event[:, r_arg], 0)
-                np.savetxt(f, to_save, '%2.5f', delimiter=',')
-                f.write("%s.png\n" % str(self.now))
-                np.savetxt(f, event_save, '%2.5f', delimiter=',')
-                save_image(self.frame[0], '%s.png' % ("./images/"+str(self.now)))
+            in2df = pd.DataFrame([Ped_sample(self.actions, self.event, f"{self.now}.png")])
+            self.df = self.df.append(in2df, ignore_index=True)
+            # print(self.df)
+            # with open("Herdr_act.txt", "a") as f:
+            #     to_save = self.actions[r_arg, :, :].detach().transpose(1, 0).numpy()
+            #     event_save = np.expand_dims(self.event[:, r_arg], 0)
+            #     np.savetxt(f, to_save, '%2.5f', delimiter=',')
+            #     f.write("%s.png\n" % str(self.now))
+            #     np.savetxt(f, event_save, '%2.5f', delimiter=',')
+            #     save_image(self.frame[0], '%s.png' % ("./images/"+str(self.now)))
 
     def Herdr(self):
         loader = transforms.Compose([transforms.ToTensor()])
@@ -273,6 +295,7 @@ class Hircus (Supervisor):
         return np.asarray([avg_dist, collision])
 
 
+
 def pathlength(x, y):
     n = len(x)
     lv = [np.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2) for i in range(1, n)]
@@ -281,10 +304,10 @@ def pathlength(x, y):
 
 
 controller = Hircus(train=True)
-# Hircus_traj = []
-# Avg_dist = []
-# in_collision = []
-# unsafe = []  # "Score"
+Hircus_traj = []
+Avg_dist = []
+in_collision = []
+unsafe = []  # "Score"
 while not controller.step(WEBOTS_STEP_TIME) == -1:
     controller.Herdr()
     # Hircuspos = controller.hircus.getPosition()
