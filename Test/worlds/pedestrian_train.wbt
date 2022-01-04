@@ -17,10 +17,9 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.582896128797264 0.5568288210824829 0.5917548200437878 4.141243507480559
-  position 2.728103858398984 37.427538470054415 -0.1873207500498537
+  orientation -0.5773502691896257 -0.5773502691896257 -0.5773502691896257 2.0943951
+  position 0 52 0
   near 1
-  follow "CapraHircus"
   followType "None"
 }
 TexturedBackground {
@@ -837,6 +836,6 @@ DEF Hircus Robot {
   }
   physics Physics {
   }
-  controller "Hircus"
+  controller "<extern>"
   supervisor TRUE
 }

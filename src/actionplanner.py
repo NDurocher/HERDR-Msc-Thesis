@@ -8,7 +8,7 @@ import torch
 
 
 class HERDRPlan:
-    def __init__(self, Horizon=10, vel_init=1.5, steer_init=0, gamma=5):
+    def __init__(self, Horizon=10, vel_init=1.5, steer_init=0, gamma=50):
         # Set default starting value for actions
         # [Velocity (m/s), Steering angle (rad)]
         self.horizon = Horizon
@@ -22,7 +22,7 @@ class HERDRPlan:
         self.cov = torch.stack((vel_cov, steer_cov)).transpose(2, 0)
         # Define parameter to adjust for high weight updates
         self.gamma = gamma
-        self.beta = 0.5
+        self.beta = 0.6
 
     def sample_new(self, batches=1):
         cov = self.cov.repeat(batches, 1, 1)
@@ -52,20 +52,22 @@ class HERDRPlan:
 
     def update_new(self, reward, sequence):
         # reward is a batch x horizon x 1 tensor, sequence is a batch x horizon x 2 tensor
+        reward = (reward - reward.min())/(reward.max() - reward.min())
         mean = torch.zeros(self.horizon, 2)
         s_R = torch.zeros(self.horizon, 1)
         for r, seq in zip(reward, sequence):
-            mean += np.exp(self.gamma * r) * seq
-            s_R += np.exp(self.gamma * r)
+            mean += torch.exp(self.gamma * r) * seq
+            s_R += torch.exp(self.gamma * r)
         self.mean = (mean / s_R).transpose(0, 1).double()
+        pass
 
 
 if __name__ == "__main__":
-    test = BadgrPlan()
+    test = HERDRPlan()
     samp = test.sample_new(batches=3)
     # samp1 = test.sample_new()
     # samp = torch.stack((samp, samp1), 0)
-    print(samp)
+    print(samp.shape)
     # R = torch.tensor(np.random.rand(3, 5))
     # samp = samp.unsqueeze(0)
     # test.update_new(R, samp)

@@ -1,3 +1,4 @@
+import matplotlib.pyplot
 import torch
 import sys
 import numpy as np
@@ -8,27 +9,35 @@ from matplotlib.collections import LineCollection
 from time import sleep
 
 
-def plot_trajectory(traj, line_values, goal, label, traj_length, collision=-1):
-    points = np.array([traj[:, 2], traj[:, 0]]).T.reshape(-1, 1, 2)
+def plot_trajectory(robot_traj, line_values, ped_traj, goal, label, traj_length, collision=-1):
+    # fig, ax = plt.subplots()
+    points = np.array([robot_traj[:, 2], robot_traj[:, 0]]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
     lc = LineCollection(segments, cmap=plt.get_cmap('magma'), norm=plt.Normalize(0, line_values.max()))
     lc.set_array(line_values)
     lc.set_linewidth(3)
     plt.figure(1)
     plt.gca().add_collection(lc)
-    plt.scatter(goal[0, 1], goal[0, 0], s=600, c='red', marker="o")
+    img = plt.imread("Topview.jpg")  #/Users/NathanDurocher/Documents/GitHub/HERDR/
+    plt.imshow(img, extent=[-20, 20, -10, 10])
+    plt.autoscale(False)
+    plt.scatter(goal[0, 1], goal[0, 0], s=200, c='green', marker="o")
+    for i, ped in enumerate(ped_traj):
+        if i == 0:
+            plt.scatter(ped[:, 2], ped[:, 0], s=0.8, c='orange', marker="o")
+        else:
+            plt.scatter(ped[:, 2], ped[:, 0], s=0.2, c='red', marker="o")
     plt.xlim(-10, 10)
     plt.ylim(-10, 10)
-    plt.axis('equal')
+    # plt.axis('equal')
     plt.colorbar(mappable=lc, label='%s from Peds (m)' % label)
     plt.xlabel('Z-Position (m)')
     plt.ylabel('X-Position (m)')
     plt.title('%s from Pedestrians along a Trajectory' % label)
     if collision != -1:
-        plt.figtext(0.15, 0.17, "# of Collisions %d" % collision)
-    plt.figtext(0.15, 0.13, "Distance Travelled: %2.2f" % traj_length)
+        plt.figtext(0.03, 0.02, "# of Collisions: %d" % collision, c='red')
+    plt.figtext(0.70, 0.02, "Distance Travelled: %2.2f" % traj_length, c='red')
     plt.show()
-
 
 def plot_actions(position, line_values, label, GOAL):
     plt.clf()
@@ -46,7 +55,7 @@ def plot_actions(position, line_values, label, GOAL):
     plt.xlabel('Z-Position (m)')
     plt.ylabel('X-Position (m)')
     plt.title('Probability of Collision for n=%s Action Sequences' % label)
-    plt.scatter(GOAL[0, 1], GOAL[0, 0], s=50, c='red', marker="o")
+    # plt.scatter(GOAL[0, 1], GOAL[0, 0], s=50, c='red', marker="o")
     plt.show()
     # sleep(0.1)
     plt.pause(0.01)

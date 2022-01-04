@@ -82,7 +82,7 @@ class Pedestrian (Supervisor):
         point_list = options.trajectory.split(',')
         x = [str(uniform(-6, 6)) for p in range(0, 2)]
         y = [str(uniform(-4, 4)) for p in range(0, 2)]
-        point_list = [''+x[0]+' '+y[0], x[1]+" "+y[0]] 
+        point_list = [''+x[0]+' '+y[0], x[1]+" "+y[1]]
         self.number_of_waypoints = len(point_list)
         self.waypoints = []
         for i in range(0, self.number_of_waypoints):
