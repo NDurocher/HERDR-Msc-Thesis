@@ -1,10 +1,5 @@
-
-
 import numpy as np
-# from PIL import Image
-# from torch import nn
 import torch
-# import cv2
 
 
 class HERDRPlan:
@@ -12,17 +7,16 @@ class HERDRPlan:
         # Set default starting value for actions
         # [Velocity (m/s), Steering angle (rad)]
         self.horizon = Horizon
-        vel_mean = vel_init*np.ones(self.horizon)
-        steer_mean = steer_init*np.zeros(self.horizon)
-        # self.mean = np.concatenate((vel_mean, steer_mean))
-        self.mean = torch.tensor(np.vstack((vel_mean, steer_mean)))
+        vel_mean = vel_init*torch.ones(self.horizon)
+        steer_mean = steer_init*torch.zeros(self.horizon)
+        self.mean = torch.stack((vel_mean, steer_mean)).double()
         # set guess for variance
         vel_cov = 0.1*torch.ones(self.horizon, 1)
-        steer_cov = 0.3*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
+        steer_cov = 1.*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
         self.cov = torch.stack((vel_cov, steer_cov)).transpose(2, 0)
         # Define parameter to adjust for high weight updates
         self.gamma = gamma
-        self.beta = 0.6
+        self.beta = 0.4
 
     def sample_new(self, batches=1):
         cov = self.cov.repeat(batches, 1, 1)
@@ -51,8 +45,9 @@ class HERDRPlan:
         return sequence
 
     def update_new(self, reward, sequence):
-        # reward is a batch x horizon x 1 tensor, sequence is a batch x horizon x 2 tensor
-        reward = (reward - reward.min())/(reward.max() - reward.min())
+        # reward is a [batch x horizon x 1] tensor, sequence is a batch x horizon x 2 tensor
+        reward = reward.sum(dim=1)
+        reward = (reward - reward.min())/(reward.max() - reward.min()) - 1
         mean = torch.zeros(self.horizon, 2)
         s_R = torch.zeros(self.horizon, 1)
         for r, seq in zip(reward, sequence):
@@ -68,7 +63,7 @@ if __name__ == "__main__":
     # samp1 = test.sample_new()
     # samp = torch.stack((samp, samp1), 0)
     print(samp.shape)
-    # R = torch.tensor(np.random.rand(3, 5))
+    R = torch.tensor(np.random.rand(3, 10))
     # samp = samp.unsqueeze(0)
-    # test.update_new(R, samp)
+    test.update_new(R, samp)
     # print(test.mean)

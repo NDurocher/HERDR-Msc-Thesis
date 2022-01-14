@@ -1,6 +1,5 @@
 #!*python*
 
-# import numpy as np
 from torch import nn
 import torch
 import cv2
@@ -15,6 +14,7 @@ class HERDR(nn.Module):
         self.rnndim = RnnDim
 
         self.obs_pre = nn.Sequential(
+            # nn.LayerNorm([3, 240, 320]),
             nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
             # nn.MaxPool2d(4, stride=2),
             # nn.LazyBatchNorm2d(),
@@ -34,6 +34,7 @@ class HERDR(nn.Module):
             # nn.LazyBatchNorm1d()
         )
         self.action_pre = nn.Sequential(
+            # nn.LayerNorm([20, 2]),
             nn.Linear(2, 16),
             # nn.LazyBatchNorm1d(),
             nn.ReLU(),
@@ -53,24 +54,28 @@ class HERDR(nn.Module):
         )
         self.lstm = nn.LSTM(input_size=16, hidden_size=self.rnndim, num_layers=1, batch_first=False)
 
+    def normalize(self, arr):
+        up, low = arr.max(), arr.min()
+        mu = arr.mean()
+        std = 0.5 * (up - low)
+        normed_arr = (arr - mu) / std
+        return normed_arr
+
     def forward(self, img, action):
-        obs = self.obs_pre(img)
+        obs = self.obs_pre(self.normalize(img))
         # Change obs to 2*rnndim encoding, this is then split into Hx and Cx
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
         Hx = Hx.repeat(1, 1, 1)
         Cx = Cx.repeat(1, 1, 1)
-        # print(Hx.shape)
-        action = self.action_pre(action)
+        action = self.action_pre(self.normalize(action))
         # put "time" first
         action = action.transpose(1, 0)
-        # print(action.shape)
-        out, (Hn, _) = self.lstm(action, (Hx, Cx))
-        # put "time" first
-        # out = out.transpose(1, 0)
+        out, (_, _) = self.lstm(action, (Hx, Cx))
+        # put "batch" first
+        out = out.transpose(0, 1)
         out = self.model_out(out)
-        # out = out.transpose(1, 0)
-        # Output shape is (Horizon, Batch, 1))
+        # Output shape is (Batch, Horizon, 1))
         return out
 
 
@@ -82,12 +87,17 @@ if __name__ == "__main__":
         im = im.repeat(batches, 1, 1, 1)
         return im
 
-    batches = 1
+    batches = 25
     hor = 20
     planner = HERDRPlan(Horizon=hor)
-    model = HERDR(Horizon=hor, RnnDim=64)
-    # model = torch.load("/Users/NathanDurocher/Documents/GitHub/HERDR/Test/controllers/Hircus/Herdr_cross.pth",
-    #                    map_location=torch.device('cpu'))
+    # model = HERDR(Horizon=hor, RnnDim=64)
+    model = torch.load("/Users/NathanDurocher/Documents/GitHub/HERDR/Test/controllers/Hircus/Herdr_cross06-01-2022--18 50 17.pth",
+                       map_location=torch.device('cpu'))
+    model.model_out = nn.Sequential(
+        model.model_out,
+        nn.Sigmoid()
+    )
+    model.eval()
     video = cv2.VideoCapture(0)
 
     # Clear camera opening frame
@@ -95,16 +105,17 @@ if __name__ == "__main__":
 
     # Take one image
     loader = transforms.Compose([transforms.ToTensor()])
-
-    for i in range(0, 1):
-    # while True:
+    t1 = torch.ones(hor, batches)
+    # for i in range(0, 1):
+    while True:
         check, frame = video.read()
         frame = impreprosses(frame)
         actions = planner.sample_new(batches=batches)
         # print(frame.shape, actions.shape)
         r = model(frame, actions)
         # print(r.flatten(start_dim=0, end_dim=1).shape)
-
+        # tout = torch.count_nonzero(abs(r[:, :, 0] - t1) < 0.11)
+        # print(tout)
         # torch.onnx.export(model,(frame, actions),'Herdr.onnx')
         print("Prediction: ", r.detach().flatten())
         # print(r.shape, actions.shape)

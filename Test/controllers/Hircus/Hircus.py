@@ -1,5 +1,4 @@
 import pandas as pd
-
 from controller import Supervisor
 import torch
 from torch import nn
@@ -13,7 +12,7 @@ import pickle
 from datetime import datetime
 from pathlib import Path
 from matplotlib import pyplot as plt
-from matplotlib.collections import LineCollection
+import matplotlib as mpl
 from random import uniform
 from dataclasses import make_dataclass
 
@@ -21,7 +20,7 @@ dir_name = Path(Path.cwd()).parent.parent.parent
 sys.path.insert(1, str(dir_name)+'/src')
 from Badgrnet import HERDR
 from actionplanner import HERDRPlan
-from metrics_utils import plot_trajectory, plot_actions
+from metrics_utils import plot_trajectory, plot_actions, plot_action_cam_view
 
 WHEEL_RADIUS = 0.16  # m
 WEBOTS_STEP_TIME = 100
@@ -30,17 +29,17 @@ SCALE = 1000
 GNSS_RATE = 1
 HRZ = 20
 BATCH = 50
-# GOAL = [uniform(-6, 6), uniform(-6, 6)]
-GOAL = [-0.6789, 3.25]
-# print(f"X: {GOAL[0]}, Z: {GOAL[1]}")
-GOAL = np.broadcast_to(GOAL, (BATCH, 2)).copy()
+GOAL = torch.tensor([uniform(-6, 3), uniform(-6, 6)]).repeat(BATCH, HRZ, 1)
+# GOAL = torch.tensor[-0.6789, 3.25]).repeat(BATCH, HRZ, 1)
+print(f"X: {GOAL[0,0,0]:.4f}, Z: {GOAL[0, 0, 1]:.4f}")
 WEBOTS_ROBOT_NAME = "CapraHircus"
 Ped_sample = make_dataclass("Sample", [("Actions", float), ("Ground_Truth", float), ("Image_Name", str)])
+State_Event = make_dataclass("States", [("State", float), ("Event_Prob", float), ("Target_Pos", float)])
 
 
 def new_goal():
     global GOAL
-    GOAL = np.broadcast_to([uniform(-6, 6), uniform(-6, 6)], (BATCH, 2)).copy()
+    GOAL = np.broadcast_to([uniform(-6, 6), uniform(-6, 6)], (BATCH, 2))
     print(GOAL[0])
     pass
 
@@ -54,6 +53,7 @@ class Hircus (Supervisor):
         # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
         # self.model.classes = [0]
         self.df = pd.DataFrame(columns=["Actions", "Ground_Truth", "Image_Name"])
+        self.stateR_df = pd.DataFrame(columns=["State", "Event_Prob", "Target_Pos"])
         self.train = train
         self.peds = []
         i = 0
@@ -86,7 +86,7 @@ class Hircus (Supervisor):
         self.key = 0
 
         if not train:
-            self.net = torch.load('Herdr_cross30-12-2021--12 34 31.pth', map_location=torch.device('cpu'))
+            self.net = torch.load('Herdr_cross06-01-2022--18 50 17.pth', map_location=torch.device('cpu'))
             self.net.model_out = nn.Sequential(
                 self.net.model_out,
                 nn.Sigmoid()
@@ -116,10 +116,7 @@ class Hircus (Supervisor):
         self.Keyboard.enable(step_time)
         if not isinstance(self.camera, type(None)):
             self.camera.enable(step_time)
-            if self.train:
-                self.camera.recognitionEnable(step_time)
-            else:
-                self.camera.recognitionDisable()
+            self.camera.recognitionEnable(step_time)
             self.height = self.camera.getHeight()
             self.width = self.camera.getWidth()
             
@@ -148,6 +145,7 @@ class Hircus (Supervisor):
         self.rear_motor.setVelocity(speed/WHEEL_RADIUS)
 
         self.front_steer.setPosition(-steer)
+        self.rear_steering_angle = steer
         self.rear_steer.setPosition(steer)
         self.front_steer.setVelocity(1)
         self.rear_steer.setVelocity(1)
@@ -162,51 +160,54 @@ class Hircus (Supervisor):
             return 0
     
     def reward(self):
-        self.event = torch.zeros((HRZ, BATCH))
+        self.event = torch.zeros((BATCH, HRZ))
         robot_rot = self.gnss_heading_device.getRollPitchYaw()
-        # print(f"robot rot: {robot_rot}")
-        self.pose = np.reshape(np.array(self.hircus.getPose()), [4, 4])
         state = self.calculate_position(robot_rot)
-        goalReward = np.sqrt(np.square((state[:, :, 0]-GOAL[:, 0])) + np.square((state[:, :, 2]-GOAL[:, 1])))
-
+        #  goalreward Shape: [BATCH, HRZ]
+        goalReward = torch.sqrt(torch.square((state[:, :, 0]-GOAL[:, :, 0])) + torch.square((state[:, :, 2]-GOAL[:, :, 1])))
         if self.train and self.recognize():
             for ped in self.obj:
-                ped_pos = np.array(ped.getPosition())
-                ped.pose = np.reshape(np.array(ped.getPose()), [4, 4])
-                ped_pos = np.broadcast_to(ped_pos, (HRZ, BATCH, 3)).copy()
+                ped_pos = torch.tensor(ped.getPosition())
+                ped_pos = ped_pos.repeat(BATCH, HRZ, 1)
                 SFRot = ped.getField("rotation").getSFRotation()
-                ped_ori = np.array(SFRot[0:3]) * SFRot[3]
-                self.event = torch.logical_or(self.is_safe(state, ped_pos, ped_ori), self.event)
-            # plot_actions(state, self.event.detach().numpy().T, str(BATCH), GOAL)
-            self.event = self.event.float()
-            goalReward = torch.tensor(goalReward)
+                ped_ori = torch.tensor(SFRot[0:3]) * SFRot[3]
+                # Event Shape: [BATCH, HRZ]
+                self.event = torch.logical_or(self.is_safe(state, ped_pos, ped_ori), self.event).float()
         elif not self.train:
-            self.event = self.net(self.frame, self.actions)[:, :, 0].detach().unsqueeze(2).transpose(1, 0)
-            # plot_actions(state, self.event.squeeze(2).detach().numpy(), str(BATCH), GOAL)
-            goalReward = torch.tensor(goalReward.transpose(1, 0)).unsqueeze(2)
-        else:
-            self.event = torch.zeros((HRZ, BATCH))
-            # plot_actions(state, self.event.detach().numpy().T, str(BATCH), GOAL)
-            goalReward = torch.tensor(goalReward)
-        event_gain = goalReward.mean()*1.1
+            #  Event shape: [BATCH, HRZ]
+            self.event = self.net(255*self.frame, self.actions)[:, :, 0].detach()
+        plot_action_cam_view(self.actions, self.frame[0], self.event,
+                             self.rear_steering_angle, self.front_motor.getVelocity()*WHEEL_RADIUS)
+        cmap = mpl.cm.magma
+        norm = mpl.colors.Normalize(vmin=0, vmax=1)
+        plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
+        plt.show(block=False)
+        plt.pause(0.05)
+        # self.save_event(state)
+        event_gain = goalReward.mean()*1.4
         reward = goalReward + event_gain * self.event
         return reward
-            
+
+    def save_event(self, state):
+        toodf = pd.DataFrame([State_Event(state, self.event.detach().numpy(), GOAL[0, 0, :])])
+        self.stateR_df = self.stateR_df.append(toodf, ignore_index=True)
+        pass
+
     def calculate_position(self, rot):
-        new_pos = np.array(self.hircus.getPosition())
-        new_state = np.hstack((new_pos.T, -rot[2]))
-        batch_state = np.broadcast_to(new_state, (BATCH, 4)).copy()
-        act = self.actions.numpy()
-        state_stack = np.empty((HRZ, BATCH, 4))
+        new_pos = torch.tensor(self.hircus.getPosition())
+        new_state = torch.cat((new_pos.T, torch.tensor([-rot[2]])))
+        batch_state = new_state.repeat(BATCH, HRZ, 1).transpose(1,2)
         # Y-axis is vertical, movement is in X-Z plane
         # [X Y Z Phi]
-        for i in range(0, HRZ):
-            batch_state[:, 0] = batch_state[:, 0] - (WEBOTS_STEP_TIME/SCALE)*np.cos(batch_state[:, 3])*act[:, i, 0]
-            batch_state[:, 2] = batch_state[:, 2] - (WEBOTS_STEP_TIME/SCALE)*np.sin(batch_state[:, 3])*act[:, i, 0]
-            batch_state[:, 3] = batch_state[:, 3] + (WEBOTS_STEP_TIME/SCALE) * act[:, i, 1] * 2 * \
-                                act[:, i, 0]/self.wheelbase
-            state_stack[i, :, :] = batch_state.copy()
-        return state_stack
+        for i in range(0, HRZ - 1):
+            batch_state[:, 0, i + 1] = batch_state[:, 0, i] - (WEBOTS_STEP_TIME / SCALE) * torch.cos(
+                batch_state[:, 3, i]) * self.actions[:, i, 0]
+            batch_state[:, 2, i + 1] = batch_state[:, 2, i] - (WEBOTS_STEP_TIME / SCALE) * torch.sin(
+                batch_state[:, 3, i]) * self.actions[:, i, 0]
+            batch_state[:, 3, i + 1] = batch_state[:, 3, i] + (WEBOTS_STEP_TIME / SCALE) * self.actions[:, i, 1] * \
+                                       self.actions[:, i, 0] / self.wheelbase
+        ### output shape: [BATCH, HRZ, 4]
+        return batch_state.permute(0, 2, 1)
         
     def is_safe(self, state, ped_pos, ped_ori):
         # Simple personal space model with an ellipse of radii "a" & "b" and offset by "shift"
@@ -214,28 +215,24 @@ class Hircus (Supervisor):
         b = 1.5
         A = - ped_ori[1]
         shift = 1
-        k = shift * np.cos(A)
-        h = - shift * np.sin(A)
-        first_term = np.square(
-            (state[:, :, 0] - ped_pos[:, :, 0] - h) * np.cos(A) + (state[:, :, 2] - ped_pos[:, :, 2] - k) * np.sin(
+        k = shift * torch.cos(A)
+        h = - shift * torch.sin(A)
+        first_term = torch.square(
+            (state[:, :, 0] - ped_pos[:, :, 0] - h) * torch.cos(A) + (state[:, :, 2] - ped_pos[:, :, 2] - k) * torch.sin(
                 A)) / a ** 2
-        second_term = np.square(
-            (state[:, :, 0] - ped_pos[:, :, 0] - h) * np.sin(A) - (state[:, :, 2] - ped_pos[:, :, 2] - k) * np.cos(
+        second_term = torch.square(
+            (state[:, :, 0] - ped_pos[:, :, 0] - h) * torch.sin(A) - (state[:, :, 2] - ped_pos[:, :, 2] - k) * torch.cos(
                 A)) / b ** 2
         check = (first_term + second_term) < 1
-        return torch.tensor(check, dtype=torch.int)
+        return check.int()
 
     def reset(self):
-        self.exportImage(str(dir_name) + '/Test/controllers/Hircus/Topview.jpg', 100)
-        self.simulationReset()
-        # for ped in self.peds:
-        #     ped.restartController()
-        # if os.path.isfile('./Herdr_data.pkl'):
-        #     df = pd.read_pickle("Herdr_data.pkl")
-        #     df = df.append(self.df, ignore_index=True)
-        #     df.to_pickle("Herdr_data.pkl", protocol=4)
-        # else:
-        #     self.df.to_pickle("Herdr_data.pkl", protocol=4)
+        # self.exportImage(str(dir_name) + '/Test/controllers/Hircus/Topview.jpg', 100)
+        # self.simulationReset()
+        for ped in self.peds:
+            ped.restartController()
+        # add2pickle("Herdr_data_train.pkl", self.df)
+        # add2pickle("State_rewards.pkl", self.stateR_df, overwrite=True)
         self.hircus.restartController()
         # new_goal()
         pass
@@ -247,47 +244,40 @@ class Hircus (Supervisor):
             self.reset()
         # if self.getTime() > 50:
         #     self.reset()
-        dist2goal = np.sqrt((pos[0] - GOAL[0, 0]) ** 2 + (pos[2] - GOAL[0, 1]) ** 2)
-        if dist2goal < 0.75:
-            # if within 1[m] of goal pause/end simulation
+        dist2goal = np.sqrt((pos[0] - GOAL[0, 0, 0]) ** 2 + (pos[2] - GOAL[0, 0, 1]) ** 2)
+        if dist2goal < 0.50:
+            # if within 0.5 [m] of goal
             print("Made it!!")
             self.reset()
 
-    def todataset(self, r_arg):
-        if self.recognize() and self.train:
-            self.now = datetime.now()
-            in2df = pd.DataFrame([Ped_sample(self.actions[r_arg, :, :].detach(),
-                                             self.event[:, r_arg].detach(), f"{self.now}.png")])
+    def todataset(self):
+        # if self.recognize() and self.train:
+        self.now = datetime.now()
+        for i, sample in enumerate(self.actions):
+            in2df = pd.DataFrame([Ped_sample(self.actions[i, :, :].detach(),
+                                             self.event[i, :].detach(), f"{self.now}.png")])
             self.df = self.df.append(in2df, ignore_index=True)
-            save_image(self.frame[0], '%s.png' % ("./images/"+str(self.now)))
-            # print(self.df)
-            # with open("Herdr_act.txt", "a") as f:
-            #     to_save = self.actions[r_arg, :, :].detach().transpose(1, 0).numpy()
-            #     event_save = np.expand_dims(self.event[:, r_arg], 0)
-            #     np.savetxt(f, to_save, '%2.5f', delimiter=',')
-            #     f.write("%s.png\n" % str(self.now))
-            #     np.savetxt(f, event_save, '%2.5f', delimiter=',')
+        save_image(self.frame[0]/255, '%s.png' % ("./images/"+str(self.now)))
 
     def Herdr(self):
-        loader = transforms.Compose([transforms.ToTensor()])
         frame = np.asarray(np.frombuffer(self.camera.getImage(), dtype=np.uint8))
         frame = np.reshape(np.ravel(frame), (self.height, self.width, 4), order='C')
-        frame = loader(frame[:, :, 0:3]).float()
-        self.frame = frame.unsqueeze(0)
+        frame = torch.tensor(frame[:, :, 0:3]).float()
+        self.frame = frame.permute(2, 0, 1).unsqueeze(0)
         self.frame = self.frame.repeat(BATCH, 1, 1, 1)
         self.actions = self.planner.sample_new(batches=BATCH)
         r = self.reward()
         if not self.train:
-            best_r_arg = torch.argmin(torch.sum(r, dim=1))
+            best_r_arg = torch.argmin(torch.sum(r, dim=0))
         else:
             best_r_arg = torch.argmin(torch.sum(r, dim=0))
-            r = r.transpose(0, 1).unsqueeze(2)
+            # best_r_arg = torch.randint(0, BATCH, (1, 1)).item()
 
         # update motors and check for nan values
         self.update_motors(float(self.actions[best_r_arg, 0, 0]), float(self.actions[best_r_arg, 0, 1]))
 
         # Save To DataSet
-        # self.todataset(best_r_arg)
+        # self.todataset()
 
         # Update action mean and check for reset
         r = - r
@@ -308,6 +298,15 @@ class Hircus (Supervisor):
         return np.asarray([min_dist, collision])
 
 
+def add2pickle(file_name, dataframe, overwrite=False):
+    if os.path.isfile(f'./{file_name}') and not overwrite:
+        pkl_dataframe = pd.read_pickle(file_name)
+        pkl_dataframe = pkl_dataframe.append(dataframe, ignore_index=True)
+        pkl_dataframe.to_pickle(file_name, protocol=4)
+    else:
+        dataframe.to_pickle(file_name, protocol=4)
+    pass
+
 
 def pathlength(x, y):
     n = len(x)
@@ -317,30 +316,27 @@ def pathlength(x, y):
 
 
 controller = Hircus(train=False)
-Hircus_traj = []
-ped_trajs = []
-min_dist = []
-in_collision = []
-unsafe = []  # "Score"
+# Hircus_traj = []
+# ped_trajs = []
+# min_dist = []
+# in_collision = []
+# unsafe = []  # "Score"
 while not controller.step(WEBOTS_STEP_TIME) == -1:
     controller.Herdr()
-    Hircuspos = controller.hircus.getPosition()
-    Hircus_traj.append(Hircuspos)
-    if not controller.getTime() == 0.1:
-        ped_trajs.append([p.getPosition() for p in controller.peds])
-    out_log = controller.log(Hircuspos, controller.peds)
-    min_dist.append(out_log[0])
-    in_collision.append(out_log[1])
-    unsafe.append(torch.sum(controller.event))
+    # Hircuspos = controller.hircus.getPosition()
+    # Hircus_traj.append(Hircuspos)
+    # if not controller.getTime() == 0.1:
+    #     ped_trajs.append([p.getPosition() for p in controller.peds])
+    # out_log = controller.log(Hircuspos, controller.peds)
+    # min_dist.append(out_log[0])
+    # in_collision.append(out_log[1])
+    # unsafe.append(torch.sum(controller.event))
+#
+# unsafe = np.asarray(unsafe)
+# min_dist = np.asarray(min_dist)
+# Hircus_traj = np.asarray(Hircus_traj)
+# ped_trajs = np.asarray(ped_trajs)
+# traj_length = pathlength(Hircus_traj[:, 0], Hircus_traj[:, 2])
 
-unsafe = np.asarray(unsafe)
-min_dist = np.asarray(min_dist)
-Hircus_traj = np.asarray(Hircus_traj)
-ped_trajs = np.asarray(ped_trajs)
-traj_length = pathlength(Hircus_traj[:, 0], Hircus_traj[:, 2])
-to_store = [Hircus_traj, traj_length, min_dist, in_collision]
-HERDRfile = open('mertics', 'ab')
-pickle.dump(to_store, HERDRfile)
-
-plot_trajectory(Hircus_traj, min_dist, ped_trajs, GOAL, "Clearance", traj_length, collision=in_collision.count(1))
-plot_trajectory(Hircus_traj, unsafe, ped_trajs, GOAL, "Unsafe Score", traj_length, collision=in_collision.count(1))
+# plot_trajectory(Hircus_traj, min_dist, ped_trajs, GOAL, "Clearance", traj_length, collision=in_collision.count(1))
+# plot_trajectory(Hircus_traj, unsafe, ped_trajs, GOAL, "Unsafe Score", traj_length, collision=in_collision.count(1))

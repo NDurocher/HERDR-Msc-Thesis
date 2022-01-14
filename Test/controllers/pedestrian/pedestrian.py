@@ -59,8 +59,9 @@ class Pedestrian (Supervisor):
             [0.0, 0.0, 0.42, -0.07, 0.07, 0.07, -0.07, -0.36],  # right foot
             [0.18, 0.09, 0.0, 0.09, 0.18, 0.09, 0.0, 0.09]  # head
         ]
-        # self.pose = self.ped.getPose()
         Supervisor.__init__(self)
+        self.ped = self.getSelf()
+        print(f"{self.ped.getDef()} is ID: {self.ped.getId()}")
 
     def run(self):
         """Set the Pedestrian pose and position."""

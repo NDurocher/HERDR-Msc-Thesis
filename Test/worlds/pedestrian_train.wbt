@@ -836,6 +836,6 @@ DEF Hircus Robot {
   }
   physics Physics {
   }
-  controller "<extern>"
+  controller "Hircus"
   supervisor TRUE
 }
