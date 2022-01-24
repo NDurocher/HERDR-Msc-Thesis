@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from random import uniform
 from dataclasses import make_dataclass
+from openvino.inference_engine import IECore, IENetwork, Blob, TensorDesc
 
 dir_name = Path(Path.cwd()).parent.parent.parent
 sys.path.insert(1, str(dir_name)+'/src')
@@ -30,13 +31,17 @@ SCALE = 1000
 GNSS_RATE = 1
 HRZ = 20
 BATCH = 50
-# GOAL = [uniform(-6, 6), uniform(-6, 6)]
-GOAL = [-0.6789, 3.25]
-# print(f"X: {GOAL[0]}, Z: {GOAL[1]}")
+GOAL = [uniform(-6, 6), uniform(-6, 6)]
+# GOAL = [-0.6789, 3.25]
+print(f"X: {GOAL[0]:.4f}, Z: {GOAL[1]:.4f}")
 GOAL = np.broadcast_to(GOAL, (BATCH, 2)).copy()
 WEBOTS_ROBOT_NAME = "CapraHircus"
 Ped_sample = make_dataclass("Sample", [("Actions", float), ("Ground_Truth", float), ("Image_Name", str)])
-
+ie = IECore()
+net = IECore.read_network(ie, 'Herdr.xml', 'Herdr.bin')
+output_blob = next(iter(net.outputs))
+exec_net = ie.load_network(network=net, device_name='MYRIAD', num_requests=1)
+inference_request = exec_net.requests[0]
 
 def new_goal():
     global GOAL
@@ -181,7 +186,9 @@ class Hircus (Supervisor):
             self.event = self.event.float()
             goalReward = torch.tensor(goalReward)
         elif not self.train:
-            self.event = self.net(self.frame, self.actions)[:, :, 0].detach().unsqueeze(2).transpose(1, 0)
+            # self.event = self.net(self.frame, self.actions)[:, :, 0].detach().unsqueeze(2).transpose(1, 0)
+            output = exec_net.infer(inputs={"input.1": 255*self.frame, "input.25": self.actions})
+            self.event = torch.tensor(output[output_blob]).transpose(1, 0)
             # plot_actions(state, self.event.squeeze(2).detach().numpy(), str(BATCH), GOAL)
             goalReward = torch.tensor(goalReward.transpose(1, 0)).unsqueeze(2)
         else:
