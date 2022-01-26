@@ -3,3 +3,7 @@
 *.png
 *.pkl
 herdr/
+*.onnx
+*.mapping
+*Herdr.xml
+*Herdr.bin
