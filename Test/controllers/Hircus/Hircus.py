@@ -2,7 +2,6 @@ import pandas as pd
 from controller import Supervisor
 import torch
 from torch import nn
-from torchvision import transforms
 from torchvision.utils import save_image
 import sys
 import os
@@ -13,8 +12,11 @@ from datetime import datetime
 from pathlib import Path
 from matplotlib import pyplot as plt
 import matplotlib as mpl
+import matplotlib.animation as animation
 from random import uniform
 from dataclasses import make_dataclass
+from openvino.inference_engine import IECore, IENetwork, Blob, TensorDesc
+
 
 dir_name = Path(Path.cwd()).parent.parent.parent
 sys.path.insert(1, str(dir_name)+'/src')
@@ -35,6 +37,12 @@ print(f"X: {GOAL[0,0,0]:.4f}, Z: {GOAL[0, 0, 1]:.4f}")
 WEBOTS_ROBOT_NAME = "CapraHircus"
 Ped_sample = make_dataclass("Sample", [("Actions", float), ("Ground_Truth", float), ("Image_Name", str)])
 State_Event = make_dataclass("States", [("State", float), ("Event_Prob", float), ("Target_Pos", float)])
+### for NCS2
+ie = IECore()
+net = IECore.read_network(ie, 'Herdr.xml', 'Herdr.bin')
+output_blob = next(iter(net.outputs))
+exec_net = ie.load_network(network=net, device_name='MYRIAD', num_requests=1)
+inference_request = exec_net.requests[0]
 
 
 def new_goal():
@@ -60,6 +68,9 @@ class Hircus (Supervisor):
         while not self.getFromDef("Ped%d" % i) is None:
             self.peds.append(self.getFromDef("Ped%d" % i))
             i += 1
+        self.logger = self.getFromDef("Logger")
+        self.logger.getField('translation').setSFVec3f([GOAL[0, 0, 0], 10, GOAL[0, 0, 1]])
+        self.customdata = self.logger.getField('customData')
         self.hircus = self.getSelf()
         self.pose = self.hircus.getPose()
         self.frame = None
@@ -67,7 +78,7 @@ class Hircus (Supervisor):
         self.recog = []
         self.actions = []
         self.now = []
-        self.event = []
+        self.event = torch.tensor([])
 
         self.load_webots_devices()
         self.enable_sensors(DEVICE_SAMPLE_TIME)
@@ -147,8 +158,8 @@ class Hircus (Supervisor):
         self.front_steer.setPosition(-steer)
         self.rear_steering_angle = steer
         self.rear_steer.setPosition(steer)
-        self.front_steer.setVelocity(1)
-        self.rear_steer.setVelocity(1)
+        self.front_steer.setVelocity(2)
+        self.rear_steer.setVelocity(2)
         
     def recognize(self):
         self.recog = self.camera.getRecognitionObjects()
@@ -175,16 +186,15 @@ class Hircus (Supervisor):
                 self.event = torch.logical_or(self.is_safe(state, ped_pos, ped_ori), self.event).float()
         elif not self.train:
             #  Event shape: [BATCH, HRZ]
-            self.event = self.net(255*self.frame, self.actions)[:, :, 0].detach()
+            # self.event = self.net(self.frame, self.actions)[:, :, 0].detach()
+            output = exec_net.infer(inputs={"img": self.frame, "actions": self.actions})
+            self.event = torch.tensor(output[output_blob]).squeeze(2)
         plot_action_cam_view(self.actions, self.frame[0], self.event,
                              self.rear_steering_angle, self.front_motor.getVelocity()*WHEEL_RADIUS)
-        cmap = mpl.cm.magma
-        norm = mpl.colors.Normalize(vmin=0, vmax=1)
-        plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
-        plt.show(block=False)
-        plt.pause(0.05)
+        # plt.show(block=False)
+        # plt.pause(0.05)
         # self.save_event(state)
-        event_gain = goalReward.mean()*1.4
+        event_gain = goalReward.mean()*1.1
         reward = goalReward + event_gain * self.event
         return reward
 
@@ -227,12 +237,12 @@ class Hircus (Supervisor):
         return check.int()
 
     def reset(self):
-        # self.exportImage(str(dir_name) + '/Test/controllers/Hircus/Topview.jpg', 100)
         # self.simulationReset()
         for ped in self.peds:
             ped.restartController()
         # add2pickle("Herdr_data_train.pkl", self.df)
         # add2pickle("State_rewards.pkl", self.stateR_df, overwrite=True)
+        self.logger.restartController()
         self.hircus.restartController()
         # new_goal()
         pass
@@ -245,7 +255,7 @@ class Hircus (Supervisor):
         # if self.getTime() > 50:
         #     self.reset()
         dist2goal = np.sqrt((pos[0] - GOAL[0, 0, 0]) ** 2 + (pos[2] - GOAL[0, 0, 1]) ** 2)
-        if dist2goal < 0.50:
+        if dist2goal < 0.75:
             # if within 0.5 [m] of goal
             print("Made it!!")
             self.reset()
@@ -321,6 +331,12 @@ controller = Hircus(train=False)
 # min_dist = []
 # in_collision = []
 # unsafe = []  # "Score"
+fig = plt.figure(figsize=(16, 8.9), dpi=80)
+cmap = mpl.cm.magma
+norm = mpl.colors.Normalize(vmin=0, vmax=1)
+cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
+writer = animation.FFMpegWriter(fps=5)
+writer.setup(fig, 'actions_cam_view.mp4')
 while not controller.step(WEBOTS_STEP_TIME) == -1:
     controller.Herdr()
     # Hircuspos = controller.hircus.getPosition()
@@ -331,12 +347,19 @@ while not controller.step(WEBOTS_STEP_TIME) == -1:
     # min_dist.append(out_log[0])
     # in_collision.append(out_log[1])
     # unsafe.append(torch.sum(controller.event))
-#
+    controller.customdata.setSFString(str(torch.sum(controller.event).item()))
+    # controller.exportImage(str(dir_name) + '/Test/controllers/Hircus/Topview.jpg', 100)
+    writer.grab_frame()
+
+# ani = animation.ArtistAnimation(fig, frame_list, interval=100)
+# ani.save('actions_cam_view.mp4', writer)
+writer.finish()
 # unsafe = np.asarray(unsafe)
 # min_dist = np.asarray(min_dist)
 # Hircus_traj = np.asarray(Hircus_traj)
 # ped_trajs = np.asarray(ped_trajs)
 # traj_length = pathlength(Hircus_traj[:, 0], Hircus_traj[:, 2])
-
+#
 # plot_trajectory(Hircus_traj, min_dist, ped_trajs, GOAL, "Clearance", traj_length, collision=in_collision.count(1))
+# fig = plt.figure(figsize=(16, 8.9), dpi=80)
 # plot_trajectory(Hircus_traj, unsafe, ped_trajs, GOAL, "Unsafe Score", traj_length, collision=in_collision.count(1))

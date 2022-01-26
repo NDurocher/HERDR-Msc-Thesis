@@ -91,7 +91,7 @@ if __name__ == "__main__":
     hor = 20
     planner = HERDRPlan(Horizon=hor)
     # model = HERDR(Horizon=hor, RnnDim=64)
-    model = torch.load("/Users/NathanDurocher/Documents/GitHub/HERDR/Test/controllers/Hircus/Herdr_cross06-01-2022--18 50 17.pth",
+    model = torch.load("../Test/controllers/Hircus/Herdr_cross06-01-2022--18 50 17.pth",
                        map_location=torch.device('cpu'))
     model.model_out = nn.Sequential(
         model.model_out,

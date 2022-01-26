@@ -16,7 +16,7 @@ from actionplanner import HERDRPlan
 
 
 def plot_trajectory(robot_traj, line_values, ped_traj, goal, label, traj_length, collision=-1):
-    # fig, ax = plt.subplots()
+    plt.clf()
     points = np.array([robot_traj[:, 2], robot_traj[:, 0]]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
     lc = LineCollection(segments, cmap=plt.get_cmap('magma'), norm=plt.Normalize(0, line_values.max()))
@@ -24,10 +24,11 @@ def plot_trajectory(robot_traj, line_values, ped_traj, goal, label, traj_length,
     lc.set_linewidth(3)
     plt.figure(1)
     plt.gca().add_collection(lc)
-    img = plt.imread("Topview.jpg")  #/Users/NathanDurocher/Documents/GitHub/HERDR/
+    img = plt.imread("./Topview.jpg")  #/Users/NathanDurocher/Documents/GitHub/HERDR/
     plt.imshow(img, extent=[-20, 20, -10, 10])
     plt.autoscale(False)
-    plt.scatter(goal[0, 1], goal[0, 0], s=200, c='green', marker="o")
+    # plt.scatter(goal[0, 0, 1], goal[0, 0, 0], s=200, c='green', marker="o")
+    plt.scatter(goal[2], goal[0], s=200, c='green', marker="o")
     for i, ped in enumerate(ped_traj):
         if i == 0:
             plt.scatter(ped[:, 2], ped[:, 0], s=0.8, c='orange', marker="o")
@@ -43,7 +44,7 @@ def plot_trajectory(robot_traj, line_values, ped_traj, goal, label, traj_length,
     if collision != -1:
         plt.figtext(0.03, 0.02, "# of Collisions: %d" % collision, c='red')
     plt.figtext(0.70, 0.02, "Distance Travelled: %2.2f" % traj_length, c='red')
-    plt.show()
+    # plt.show()
 
 def plot_actions(position, line_values, label, GOAL, directory_name):
     plt.clf()
@@ -72,8 +73,8 @@ def plot_actions(position, line_values, label, GOAL, directory_name):
 
 
 def plot_action_cam_view(actions, frame, event_probs, steer_angle, current_speed):
-    plt.close()
-    plt.figure(figsize=(16, 8.9), dpi=80)
+    plt.cla()
+    # plt.figure(figsize=(16, 8.9), dpi=80)
     # plt.rcParams["figure.figsize"] = (25, 25)
     pos = torch.zeros(actions.shape)
     dt = 0.1

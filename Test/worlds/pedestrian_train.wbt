@@ -22,6 +22,11 @@ Viewpoint {
   near 1
   followType "None"
 }
+DEF Logger Robot {
+  translation 0 10 0
+  controller "Logger"
+  supervisor TRUE
+}
 TexturedBackground {
 }
 TexturedBackgroundLight {
@@ -260,7 +265,7 @@ DEF Hircus Robot {
       ]
       endPoint Solid {
         translation 0.19 0 0
-        rotation 0 0.9999999999999999 0 0.023672591753964793
+        rotation 0 0.9999999999999999 0 0.02367259175396479
         children [
           Shape {
             appearance PBRAppearance {
@@ -527,7 +532,7 @@ DEF Hircus Robot {
             ]
             endPoint Solid {
               translation -0.19 0 0
-              rotation 0 0 -1 1.5707951153489712
+              rotation 0 0 -1 1.5707951153489708
               children [
                 Gyro {
                   rotation 0.5773502691896257 0.5773502691896257 0.5773502691896257 2.09394
@@ -559,7 +564,7 @@ DEF Hircus Robot {
                     }
                   ]
                   endPoint Solid {
-                    rotation 1 0 0 8.41354978888822e-07
+                    rotation 1 0 0 8.413549788888221e-07
                     children [
                       Transform {
                         rotation 1 0 0 1.570795
@@ -836,6 +841,6 @@ DEF Hircus Robot {
   }
   physics Physics {
   }
-  controller "Hircus"
+  controller "<extern>"
   supervisor TRUE
 }

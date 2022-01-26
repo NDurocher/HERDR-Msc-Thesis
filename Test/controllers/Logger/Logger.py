@@ -3,6 +3,17 @@
 from controller import Supervisor
 import numpy as np
 import pickle
+import torch
+# from torch import nn
+from pathlib import Path
+import sys
+from matplotlib import pyplot as plt
+import matplotlib.animation as animation
+
+dir_name = Path(Path.cwd()).parent.parent.parent
+sys.path.insert(1, str(dir_name)+'/src')
+
+from metrics_utils import plot_trajectory
 
 
 class Logger (Supervisor):
@@ -10,16 +21,75 @@ class Logger (Supervisor):
         """Constructor: initialize constants."""
         Supervisor.__init__(self)
         self.cc = self.getSelf()
+        self.customdata = self.cc.getField('customData')
         self.timestep = int(self.getBasicTimeStep())
         self.hircus = self.getFromDef("Hircus")
-        self.ped0 = self.getFromDef("Ped0")
-        self.ped1 = self.getFromDef("Ped1")
-        self.ped2 = self.getFromDef("Ped2")
+        self.peds = []
+        i = 0
+        while not self.getFromDef("Ped%d" % i) is None:
+            self.peds.append(self.getFromDef("Ped%d" % i))
+            i += 1
+
+    @staticmethod
+    def log(hircuspos, pedlist):
+        dist_list = []
+        collision = 0
+        for person in pedlist:
+            pos = person.getPosition()
+            dist = np.sqrt((hircuspos[0]-pos[0])**2 + (hircuspos[2]-pos[2])**2)
+            dist_list.append(dist)
+            if dist < 0.5:
+                collision = 1
+        min_dist = np.asarray(dist_list).min()
+        return np.asarray([min_dist, collision])
 
 
+def pathlength(x, y):
+    n = len(x)
+    lv = [np.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2) for i in range(1, n)]
+    L = sum(lv)
+    return L
 
+def is_float(value):
+    try:
+        float(value)
+        return float(value)
+    except:
+        return 0
 
+Hircus_traj = []
+ped_trajs = []
+min_dist = []
+in_collision = []
+# Hircuspos = np.zeros((2,))
+writer_dist = animation.FFMpegWriter(fps=5)
+writer_score = animation.FFMpegWriter(fps=5)
+fig = plt.figure(figsize=(16, 8.9), dpi=80)
+writer_dist.setup(fig, 'clearance.mp4')
+writer_score.setup(fig, 'score.mp4')
 controller = Logger()
-controller.run()
+GOAL = controller.cc.getPosition()
+unsafe_score = []
+while not controller.step(controller.timestep) == -1:
+    Hircuspos = controller.hircus.getPosition()
+    Hircus_traj.append(Hircuspos)
+    if not controller.getTime() == 0.1:
+        ped_trajs.append([p.getPosition() for p in controller.peds])
+    GOAL = controller.cc.getPosition()
+    out_log = controller.log(Hircuspos, controller.peds)
+    min_dist.append(out_log[0])
+    in_collision.append(out_log[1])
+    controller.exportImage(str(dir_name) + '/Test/controllers/Logger/Topview.jpg', 100)
+    traj_length = pathlength(np.asarray(Hircus_traj)[:, 0], np.asarray(Hircus_traj)[:, 2])
+    unsafe_score.append(is_float(controller.customdata.getSFString()))
+    plot_trajectory(np.asarray(Hircus_traj), np.asarray(min_dist), np.asarray(ped_trajs), GOAL, "Clearance",
+                    traj_length, collision=in_collision.count(1))
+    writer_dist.grab_frame()
+    plot_trajectory(np.asarray(Hircus_traj), np.asarray(unsafe_score), np.asarray(ped_trajs), GOAL, "Clearance",
+                    traj_length, collision=in_collision.count(1))
+    writer_score.grab_frame()
+writer_dist.finish()
+writer_score.finish()
+# GOAL = np.array([Hircuspos[0], Hircuspos[2]])
 
-# Enter here exit cleanup code.
+
