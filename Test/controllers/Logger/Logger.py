@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 import torch
 # from torch import nn
+from torchvision.utils import save_image
 from pathlib import Path
 import sys
 from matplotlib import pyplot as plt
@@ -24,7 +25,12 @@ class Logger (Supervisor):
         self.customdata = self.cc.getField('customData')
         self.timestep = int(self.getBasicTimeStep())
         self.hircus = self.getFromDef("Hircus")
+        self.camera = self.getDevice('camera')
+        self.camera.enable(self.timestep)
+        self.height = self.camera.getHeight()
+        self.width = self.camera.getWidth()
         self.peds = []
+        self.frame = None
         i = 0
         while not self.getFromDef("Ped%d" % i) is None:
             self.peds.append(self.getFromDef("Ped%d" % i))
@@ -40,9 +46,19 @@ class Logger (Supervisor):
             dist_list.append(dist)
             if dist < 0.5:
                 collision = 1
-        min_dist = np.asarray(dist_list).min()
+        try:
+            min_dist = np.asarray(dist_list).min()
+        except:
+            min_dist = 0.
         return np.asarray([min_dist, collision])
 
+    def grab_frame(self):
+        frame = np.asarray(np.frombuffer(self.camera.getImage(), dtype=np.uint8))
+        frame = np.reshape(np.ravel(frame), (self.height, self.width, 4), order='C')
+        frame = torch.tensor(frame[:, :, 0:3]).float()
+        frame = frame.permute(2, 0, 1)
+        frame = torch.index_select(frame, 0, torch.tensor([2, 1, 0]))
+        save_image(frame / 255, 'topview.jpg')
 
 def pathlength(x, y):
     n = len(x)
@@ -65,7 +81,7 @@ in_collision = []
 writer_dist = animation.FFMpegWriter(fps=5)
 writer_score = animation.FFMpegWriter(fps=5)
 fig = plt.figure(figsize=(16, 8.9), dpi=80)
-writer_dist.setup(fig, 'clear.mp4')
+writer_dist.setup(fig, 'clearance.mp4')
 writer_score.setup(fig, 'score.mp4')
 controller = Logger()
 GOAL = controller.cc.getPosition()
@@ -79,7 +95,8 @@ while not controller.step(controller.timestep) == -1:
     out_log = controller.log(Hircuspos, controller.peds)
     min_dist.append(out_log[0])
     in_collision.append(out_log[1])
-    controller.exportImage(str(dir_name) + '/Test/controllers/Logger/Topview.jpg', 100)
+    # controller.exportImage(str(dir_name) + '/Test/controllers/Logger/Topview.jpg', 100)
+    controller.grab_frame()
     traj_length = pathlength(np.asarray(Hircus_traj)[:, 0], np.asarray(Hircus_traj)[:, 2])
     unsafe_score.append(is_float(controller.customdata.getSFString()))
     plot_trajectory(np.asarray(Hircus_traj), np.asarray(min_dist), np.asarray(ped_trajs), GOAL, "Clearance",

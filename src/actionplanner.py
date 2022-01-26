@@ -66,4 +66,4 @@ if __name__ == "__main__":
     R = torch.tensor(np.random.rand(3, 10))
     # samp = samp.unsqueeze(0)
     test.update_new(R, samp)
-    # print(test.mean)
+    print(test.mean.shape)

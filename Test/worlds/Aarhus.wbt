@@ -7,6 +7,7 @@ WorldInfo {
   ERP 0.6
   basicTimeStep 100
   FPS 24
+  optimalThreadCount 4
   coordinateSystem "NUE"
   gpsReference 56.158195 10.208955 0
   lineScale 1
@@ -17,11 +18,11 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.08151504132108904 0.9865240514952041 0.14186470265682363 4.18637571447663
-  position -85.33835510954037 5.631525183525368 -58.753179380838446
+  orientation 0.6888559726514905 0.5083917646962401 0.5167351957544714 4.336512431127113
+  position -9.175220532854382 377.00060602155054 -22.994054901925022
   near 3
   follow "CapraHircus"
-  followType "Mounted Shot"
+  followType "None"
 }
 TexturedBackground {
 }
@@ -2112,11 +2113,11 @@ DEF Hircus Robot {
       translation 0.19 3.12151e-07 0.29
       rotation -0.5199881374825417 0.5199881374825417 0.6776611791705899 -1.9504353071795864
       name "CAM"
+      fieldOfView 1.56
       width 320
       height 240
-      noise 2
       recognition Recognition {
-        maxObjects 2
+        maxObjects 3
       }
     }
     Gyro {
@@ -2124,7 +2125,7 @@ DEF Hircus Robot {
       name "body_gyro"
     }
     InertialUnit {
-      rotation 1 0 0 0
+      rotation 0 0.7081060741840286 0.7061060739745005 -3.14
       name "gnss_heading"
     }
     GPS {
@@ -2760,6 +2761,26 @@ DEF Hircus Robot {
   }
   physics Physics {
   }
-  controller "Hircus"
+  controller "<extern>"
+  controllerArgs [
+    "--goal=-21.3,-30.2"
+    "--training"
+  ]
+  supervisor TRUE
+}
+DEF Logger Robot {
+  translation -21.3357 0 -30.2062
+  rotation 0 -1 0 0.261796
+  children [
+    Camera {
+      translation 0 180 0
+      rotation 0.6776611791705899 0.5199881374825417 0.5199881374825417 -1.9504353071795864
+      fieldOfView 1.56
+      width 1440
+      height 1080
+    }
+  ]
+  controller "Logger"
+  customData "0.0"
   supervisor TRUE
 }

@@ -29,11 +29,14 @@ def plot_trajectory(robot_traj, line_values, ped_traj, goal, label, traj_length,
     plt.autoscale(False)
     # plt.scatter(goal[0, 0, 1], goal[0, 0, 0], s=200, c='green', marker="o")
     plt.scatter(goal[2], goal[0], s=200, c='green', marker="o")
-    for i, ped in enumerate(ped_traj):
-        if i == 0:
-            plt.scatter(ped[:, 2], ped[:, 0], s=0.8, c='orange', marker="o")
-        else:
-            plt.scatter(ped[:, 2], ped[:, 0], s=0.2, c='red', marker="o")
+    try:
+        for i, ped in enumerate(ped_traj):
+            if i == 0:
+                plt.scatter(ped[:, 2], ped[:, 0], s=0.8, c='orange', marker="o")
+            else:
+                plt.scatter(ped[:, 2], ped[:, 0], s=0.2, c='red', marker="o")
+    except:
+        pass
     plt.xlim(-10, 10)
     plt.ylim(-10, 10)
     # plt.axis('equal')

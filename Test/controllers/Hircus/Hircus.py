@@ -66,13 +66,13 @@ class Hircus (Supervisor):
         self.enable_sensors(DEVICE_SAMPLE_TIME)
         self.reset_motor_position()
         self.reset_motor_speed()
-        
+
         self.stamp = 0.
         self.front_speed = 0.
         self.rear_speed = 0.
         self.left_speed = 0.
         self.right_speed = 0.
-        self.front_steering_angle = 0. 
+        self.front_steering_angle = 0.
         self.rear_steering_angle = 0.
         self.wheelbase = 0.38
 
@@ -115,7 +115,7 @@ class Hircus (Supervisor):
         self.gnss_heading_device = self.getDevice('gnss_heading')
         self.camera = self.getDevice('CAM')
         self.Keyboard = self.getKeyboard()
-    
+
     def enable_sensors(self, step_time):
         self.gps.enable(step_time)
         self.front_steer.getPositionSensor().enable(step_time)
@@ -128,7 +128,7 @@ class Hircus (Supervisor):
             self.camera.recognitionEnable(step_time)
             self.height = self.camera.getHeight()
             self.width = self.camera.getWidth()
-            
+
     def reset_motor_position(self):
         self.left_motor.setPosition(float('inf'))
         self.right_motor.setPosition(float('inf'))
@@ -144,7 +144,7 @@ class Hircus (Supervisor):
         self.rear_motor.setVelocity(0)
         self.front_steer.setVelocity(0)
         self.rear_steer.setVelocity(0)
-        
+
     def update_motors(self, speed, steer):
         if np.isnan(speed) or np.isnan(steer):
             self.reset()
@@ -158,24 +158,25 @@ class Hircus (Supervisor):
         self.rear_steer.setPosition(steer)
         self.front_steer.setVelocity(2)
         self.rear_steer.setVelocity(2)
-        
+
     def recognize(self):
         self.event = torch.zeros((BATCH, HRZ))
         self.recog = self.camera.getRecognitionObjects()
         if self.recog:
             obj = self.camera.getRecognitionObjects()
             self.obj = [self.getFromId(node.get_id()) for node in obj]
-            # return 1
-            for ped in self.obj:
-                ped_pos = torch.tensor(ped.getPosition())
-                ped_pos = ped_pos.repeat(BATCH, HRZ, 1)
-                SFRot = ped.getField("rotation").getSFRotation()
-                ped_ori = torch.tensor(SFRot[0:3]) * SFRot[3]
-                self.event = torch.logical_or(self.is_safe(ped_pos, ped_ori), self.event).float()
+            try:
+                for ped in self.obj:
+                    ped_pos = torch.tensor(ped.getPosition())
+                    ped_pos = ped_pos.repeat(BATCH, HRZ, 1)
+                    SFRot = ped.getField("rotation").getSFRotation()
+                    ped_ori = torch.tensor(SFRot[0:3]) * SFRot[3]
+                    self.event = torch.logical_or(self.is_safe(ped_pos, ped_ori), self.event).float()
+            except:
+                pass
         else:
-            # return 0
             pass
-    
+
     def reward(self):
         robot_rot = self.gnss_heading_device.getRollPitchYaw()
         self.state = self.calculate_position(robot_rot)
@@ -204,7 +205,7 @@ class Hircus (Supervisor):
                                        self.actions[:, i, 0] / self.wheelbase
         # ## output shape: [BATCH, HRZ, 4]
         return batch_state.permute(0, 2, 1)
-        
+
     def is_safe(self, ped_pos, ped_ori):
         # Simple personal space model with an ellipse of radii "a" & "b" and offset by "shift"
         a = 0.8
@@ -235,9 +236,9 @@ class Hircus (Supervisor):
 
     def checkreset(self):
         pos = self.hircus.getPosition()
-        if np.sqrt(pos[0] ** 2 + pos[2] ** 2) >= 9.5:
-            self.simulationReset()
-            self.reset()
+        # if np.sqrt(pos[0] ** 2 + pos[2] ** 2) >= 9.5:
+        #     self.simulationReset()
+        #     self.reset()
         # if self.getTime() > 50:
         #     self.reset()
         dist2goal = np.sqrt((pos[0] - GOAL[0, 0, 0]) ** 2 + (pos[2] - GOAL[0, 0, 1]) ** 2)
@@ -267,7 +268,7 @@ class Hircus (Supervisor):
         # best_r_arg = torch.randint(0, BATCH, (1, 1)).item()
 
         # update motors and check for nan values
-        self.update_motors(float(self.actions[best_r_arg, 0, 0]), float(self.actions[best_r_arg, 0, 1]))
+        # self.update_motors(float(self.actions[best_r_arg, 0, 0]), float(self.actions[best_r_arg, 0, 1]))
 
         # Save To DataSet
         # self.todataset()
@@ -275,6 +276,7 @@ class Hircus (Supervisor):
         # Update action mean and check for reset
         r = - r
         self.planner.update_new(r, self.actions)
+        self.update_motors(float(self.planner.mean[0, 0]), float(self.planner.mean[1, 0]))
         self.checkreset()
 
 
@@ -338,3 +340,5 @@ while not controller.step(WEBOTS_STEP_TIME) == -1:
     writer.grab_frame()
 
 writer.finish()
+
+
