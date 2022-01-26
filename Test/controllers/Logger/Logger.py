@@ -65,7 +65,7 @@ in_collision = []
 writer_dist = animation.FFMpegWriter(fps=5)
 writer_score = animation.FFMpegWriter(fps=5)
 fig = plt.figure(figsize=(16, 8.9), dpi=80)
-writer_dist.setup(fig, 'clearance.mp4')
+writer_dist.setup(fig, 'clear.mp4')
 writer_score.setup(fig, 'score.mp4')
 controller = Logger()
 GOAL = controller.cc.getPosition()
