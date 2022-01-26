@@ -1,0 +1,231 @@
+<?xml version="1.0"?>
+<mapping>
+	<map>
+		<framework name="input.1" output_port_id="input.1" />
+		<IR name="input.1" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="input.25" output_port_id="input.25" />
+		<IR name="input.25" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="model_out.2.bias" output_port_id="model_out.2.bias" />
+		<IR name="model_out.2.bias" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="model_out.0.bias" output_port_id="model_out.0.bias" />
+		<IR name="model_out.0.bias" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="action_pre.2.bias" output_port_id="action_pre.2.bias" />
+		<IR name="action_pre.2.bias" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="action_pre.0.bias" output_port_id="action_pre.0.bias" />
+		<IR name="action_pre.0.bias" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="131" output_port_id="131" />
+		<IR name="131" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="MatMul_22" output_port_id="54" />
+		<IR name="MatMul_22" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Add_23" output_port_id="55" />
+		<IR name="Add_23" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Relu_24" output_port_id="56" />
+		<IR name="Relu_24" output_port_id="1" />
+	</map>
+	<map>
+		<framework name="132" output_port_id="132" />
+		<IR name="132" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="MatMul_25" output_port_id="58" />
+		<IR name="MatMul_25" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Add_26" output_port_id="59" />
+		<IR name="Add_26" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="obs_pre.0.weight" output_port_id="obs_pre.0.weight" />
+		<IR name="obs_pre.0.weight" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Conv_0" output_port_id="28" />
+		<IR name="Conv_0" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Relu_1" output_port_id="29" />
+		<IR name="Relu_1" output_port_id="1" />
+	</map>
+	<map>
+		<framework name="obs_pre.2.weight" output_port_id="obs_pre.2.weight" />
+		<IR name="obs_pre.2.weight" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Conv_2" output_port_id="30" />
+		<IR name="Conv_2" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Relu_3" output_port_id="31" />
+		<IR name="Relu_3" output_port_id="1" />
+	</map>
+	<map>
+		<framework name="obs_pre.4.weight" output_port_id="obs_pre.4.weight" />
+		<IR name="obs_pre.4.weight" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Conv_4" output_port_id="32" />
+		<IR name="Conv_4" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Relu_5" output_port_id="33" />
+		<IR name="Relu_5" output_port_id="1" />
+	</map>
+	<map>
+		<framework name="Flatten_6/Reshape" output_port_id="34" />
+		<IR name="Flatten_6/Reshape" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="obs_pre.7.weight" output_port_id="obs_pre.7.weight" />
+		<IR name="obs_pre.7.weight" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="obs_pre.7.bias" output_port_id="obs_pre.7.bias" />
+		<IR name="obs_pre.7.bias" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Gemm_7" output_port_id="35" />
+		<IR name="Gemm_7" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Relu_8" output_port_id="36" />
+		<IR name="Relu_8" output_port_id="1" />
+	</map>
+	<map>
+		<framework name="obs_pre.9.weight" output_port_id="obs_pre.9.weight" />
+		<IR name="obs_pre.9.weight" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="obs_pre.9.bias" output_port_id="obs_pre.9.bias" />
+		<IR name="obs_pre.9.bias" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Gemm_9" output_port_id="37" />
+		<IR name="Gemm_9" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="init_hidden.0.weight" output_port_id="init_hidden.0.weight" />
+		<IR name="init_hidden.0.weight" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="init_hidden.0.bias" output_port_id="init_hidden.0.bias" />
+		<IR name="init_hidden.0.bias" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Gemm_10" output_port_id="38" />
+		<IR name="Gemm_10" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Relu_11" output_port_id="39" />
+		<IR name="Relu_11" output_port_id="1" />
+	</map>
+	<map>
+		<framework name="init_hidden.2.weight" output_port_id="init_hidden.2.weight" />
+		<IR name="init_hidden.2.weight" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="init_hidden.2.bias" output_port_id="init_hidden.2.bias" />
+		<IR name="init_hidden.2.bias" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Gemm_12" output_port_id="40" />
+		<IR name="Gemm_12" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Split_13/VariadicSplit" output_port_id="41" />
+		<IR name="Split_13/VariadicSplit" output_port_id="3" />
+	</map>
+	<map>
+		<framework name="Split_13/VariadicSplit" output_port_id="42" />
+		<IR name="Split_13/VariadicSplit" output_port_id="4" />
+	</map>
+	<map>
+		<framework name="ConstantOfShape_15/Broadcast" output_port_id="45" />
+		<IR name="ConstantOfShape_15/Broadcast" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Expand_16" output_port_id="46" />
+		<IR name="Expand_16" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Constant_14" output_port_id="43" />
+		<IR name="Constant_14" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="LSTM_27/HiddenStateResize" output_port_id="47" />
+		<IR name="LSTM_27/HiddenStateResize" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="ConstantOfShape_19/Broadcast" output_port_id="50" />
+		<IR name="ConstantOfShape_19/Broadcast" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="Expand_20" output_port_id="51" />
+		<IR name="Expand_20" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Constant_18" output_port_id="48" />
+		<IR name="Constant_18" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="LSTM_27/CellStateResize" output_port_id="52" />
+		<IR name="LSTM_27/CellStateResize" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="LSTM_27/UnsqueezeNumDirections/0" output_port_id="117" />
+		<IR name="LSTM_27/UnsqueezeNumDirections/0" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Squeeze_28" output_port_id="120" />
+		<IR name="Squeeze_28" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Transpose_29" output_port_id="121" />
+		<IR name="Transpose_29" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="153" output_port_id="153" />
+		<IR name="153" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="MatMul_30" output_port_id="123" />
+		<IR name="MatMul_30" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Add_31" output_port_id="124" />
+		<IR name="Add_31" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="Relu_32" output_port_id="125" />
+		<IR name="Relu_32" output_port_id="1" />
+	</map>
+	<map>
+		<framework name="154" output_port_id="154" />
+		<IR name="154" output_port_id="0" />
+	</map>
+	<map>
+		<framework name="MatMul_33" output_port_id="127" />
+		<IR name="MatMul_33" output_port_id="2" />
+	</map>
+	<map>
+		<framework name="128" output_port_id="128" />
+		<IR name="128" output_port_id="2" />
+	</map>
+</mapping>
