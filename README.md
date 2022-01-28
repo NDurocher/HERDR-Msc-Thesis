@@ -8,7 +8,7 @@ The project was completed for my Master's thesis for the University of Southern 
 This project is in continuous development.
  
 ## Screenshots
-[City_actions](/images/city_actions_example.png)
+![City_actions](/images/city_actions_example.png)
 
 ## Features
 What makes your project stand out?
