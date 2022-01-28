@@ -14,9 +14,9 @@ while True:
     results = model(frame)
 
     # Results
-    results.print()
+    # results.print()
     # results.show()  # or .show()
-    # print(results)
+    print(results.xyxy[0])
     # results.xyxy[0]  # img1 predictions (tensor)
     # results.pandas().xyxy[0]
     key = cv2.waitKey(1)

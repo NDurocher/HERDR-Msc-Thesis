@@ -18,11 +18,10 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.6888559726514905 0.5083917646962401 0.5167351957544714 4.336512431127113
-  position -9.175220532854382 377.00060602155054 -22.994054901925022
+  orientation 0.09336161049252742 0.9847651215092912 0.14670127860735357 4.2742121240589865
+  position -84.01636255338283 3.848072999296149 -57.35383537465009
   near 3
   follow "CapraHircus"
-  followType "None"
 }
 TexturedBackground {
 }
@@ -205,6 +204,17 @@ StraightRoadSegment {
   width 4
   numberOfLanes 1
   length 57
+}
+DEF Ped2 Pedestrian {
+  translation -72.7097 1.27 -50.5642
+  rotation 0 1 0 1.21159
+  name "pedestrian(2)"
+  controllerArgs [
+    "--dist=10"
+    "--straight"
+    "--trajectory=0 0, 0 0"
+  ]
+  shirtColor 0.9 0.15 0.2
 }
 StraightRoadSegment {
   translation -108 0 64
@@ -2107,15 +2117,28 @@ DEF parking Transform {
 }
 DEF Hircus Robot {
   translation -77.2412 0.139999 -54.0367
-  rotation 0.9351132545462786 0.25056306820553154 0.25056206820525934 -1.6378353071795866
+  rotation -0.9567426832885654 -0.2057229318993434 -0.20572193189967444 1.615
   children [
+    RangeFinder {
+      translation 0.19 0 0.29
+      rotation -0.5788570475389264 0.5717300469536178 0.5814200477494141 -2.0990353071795864
+      name "distance sensor"
+      rotationStep 0.1
+      fieldOfView 1.56
+      width 1280
+      height 720
+      maxRange 3
+    }
     Camera {
       translation 0.19 3.12151e-07 0.29
       rotation -0.5199881374825417 0.5199881374825417 0.6776611791705899 -1.9504353071795864
       name "CAM"
       fieldOfView 1.56
-      width 320
-      height 240
+      width 1280
+      height 720
+      focus Focus {
+        focalLength 68
+      }
       recognition Recognition {
         maxObjects 3
       }
@@ -2761,6 +2784,7 @@ DEF Hircus Robot {
   }
   physics Physics {
   }
+  rotationStep 0.1
   controller "<extern>"
   controllerArgs [
     "--goal=-21.3,-30.2"
@@ -2781,6 +2805,27 @@ DEF Logger Robot {
     }
   ]
   controller "Logger"
-  customData "0.0"
+  customData "264"
   supervisor TRUE
+}
+DEF Ped0 Pedestrian {
+  translation -40.4818 1.27 -40.5192
+  rotation 0 -1 0 1.93
+  name "pedestrian(3)"
+  controllerArgs [
+    "--dist=10"
+    "--straight"
+    "--trajectory=0 0, 0 0"
+  ]
+}
+DEF Ped1 Pedestrian {
+  translation -54.8793 1.27 -46.7848
+  rotation 0 -1 0 0.359204
+  name "pedestrian(1)"
+  controllerArgs [
+    "--dist=1"
+    "--straight"
+    "--trajectory=0 0, 0 0"
+  ]
+  shirtColor 0.75 0.2 0.9
 }

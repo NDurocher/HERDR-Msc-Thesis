@@ -3,6 +3,7 @@ from controller import Supervisor
 import torch
 from torch import nn
 from torchvision.utils import save_image
+# from torchvision.transforms.functional import resize
 import sys
 import os
 import numpy as np
@@ -32,18 +33,29 @@ def new_goal():
     pass
 
 
+def add2pickle(file_name, dataframe, overwrite=False):
+    if os.path.isfile(f'./{file_name}') and not overwrite:
+        pkl_dataframe = pd.read_pickle(file_name)
+        pkl_dataframe = pkl_dataframe.append(dataframe, ignore_index=True)
+        pkl_dataframe.to_pickle(file_name, protocol=4)
+    else:
+        dataframe.to_pickle(file_name, protocol=4)
+    pass
+
+
 class Hircus (Supervisor):
     """Control a Hircus PROTO."""
 
-    def __init__(self, train=True, accel=False):
+    def __init__(self, train=True, accel=False, ultra=False):
         """Constructor: initialize constants."""
         Supervisor.__init__(self)
-        # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-        # self.model.classes = [0]
+        self.yolo = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+        self.yolo.classes = [0]
         self.df = pd.DataFrame(columns=["Actions", "Ground_Truth", "Image_Name"])
         self.stateR_df = pd.DataFrame(columns=["State", "Event_Prob", "Target_Pos"])
         self.train = train
         self.accel = accel
+        self.is_ultra = ultra
         self.peds = []
         self.state = []
         i = 0
@@ -55,10 +67,11 @@ class Hircus (Supervisor):
         self.customdata = self.logger.getField('customData')
         self.hircus = self.getSelf()
         self.pose = self.hircus.getPose()
+        self.rot = None
         self.frame = None
         self.obj = []
         self.recog = []
-        self.actions = []
+        self.actions = torch.tensor([])
         self.now = []
         self.event = torch.tensor([])
 
@@ -83,7 +96,10 @@ class Hircus (Supervisor):
 
     def set_infer(self):
         if self.train:
-            return self.recognize
+            if self.is_ultra:
+                return self.yolo_recognize
+            else:
+                return self.recognize
         else:
             if self.accel:
                 return self.accel_infer
@@ -115,6 +131,7 @@ class Hircus (Supervisor):
         self.gnss_heading_device = self.getDevice('gnss_heading')
         self.camera = self.getDevice('CAM')
         self.Keyboard = self.getKeyboard()
+        self.ultra = self.getDevice('distance sensor')
 
     def enable_sensors(self, step_time):
         self.gps.enable(step_time)
@@ -123,11 +140,14 @@ class Hircus (Supervisor):
         self.body_imu.enable(step_time)
         self.gnss_heading_device.enable(step_time)
         self.Keyboard.enable(step_time)
+        self.ultra.enable(step_time)
         if not isinstance(self.camera, type(None)):
             self.camera.enable(step_time)
-            self.camera.recognitionEnable(step_time)
+            if not self.is_ultra:
+                self.camera.recognitionEnable(step_time)
             self.height = self.camera.getHeight()
             self.width = self.camera.getWidth()
+            self.fl = self.camera.getFocalLength()
 
     def reset_motor_position(self):
         self.left_motor.setPosition(float('inf'))
@@ -159,9 +179,49 @@ class Hircus (Supervisor):
         self.front_steer.setVelocity(2)
         self.rear_steer.setVelocity(2)
 
+    def yolo_recognize(self):
+        self.event = torch.zeros((BATCH, HRZ))
+        frame = self.frame[0].permute([1, 2, 0])  #.unsqueeze(0)
+        yolo_out = self.yolo(frame.numpy())
+        yolo_out = yolo_out.xyxy[0]
+        # print(yolo_out)
+        # if yolo_out is not None:
+        try:
+            x = torch.mean(torch.tensor([yolo_out[0, 0], yolo_out[0, 2]]))
+            y = torch.mean(torch.tensor([yolo_out[0, 1], yolo_out[0, 3]]))
+            image_bytes = self.ultra.getRangeImage(data_type="buffer")
+            image_np = np.frombuffer(image_bytes, dtype=np.float32)
+            image_np = np.reshape(image_np, (self.height, self.width, 1), order='C')
+            dist = image_np[int(y.item()), int(x.item())]
+            X = ((1280 / 2 - x) / self.fl) * dist
+            obj_pos = torch.tensor([X, dist]).repeat([BATCH, HRZ, 1])
+            hircus_pos = self.yolo_calculate_position()
+            self.event = self.yolo_is_safe(hircus_pos, obj_pos)
+        except:
+        # else:
+            pass
+
+    def yolo_calculate_position(self):
+        pos = torch.zeros(self.actions.shape)
+        omega = torch.zeros(self.actions.shape[0])
+        for i, val in enumerate(pos.transpose(1, 0)):
+            if i + 1 == pos.shape[1]:
+                break
+            pos[:, i + 1, 0] = pos[:, i, 0] - (WEBOTS_STEP_TIME / SCALE) * torch.sin(omega) * self.actions[:, i, 0]
+            pos[:, i + 1, 1] = pos[:, i, 1] + (WEBOTS_STEP_TIME / SCALE) * torch.cos(omega) * self.actions[:, i, 0]
+            omega = omega - (WEBOTS_STEP_TIME / SCALE) * self.actions[:, i, 1] * self.actions[:, i, 0] / self.wheelbase
+        return pos
+
+    def yolo_is_safe(self, pos, obj_pos):
+        boundary = torch.sqrt( torch.square(pos[:, :, 0] - obj_pos[:, :, 1]) + torch.square(pos[:, :, 1] - obj_pos[:, :, 0]) )
+        check = boundary < 2
+        return check.int()
+
     def recognize(self):
         self.event = torch.zeros((BATCH, HRZ))
-        self.recog = self.camera.getRecognitionObjects()
+        # self.recog = self.camera.getRecognitionObjects()
+        dist = self.ultra.getValue()
+        print(dist)
         if self.recog:
             obj = self.camera.getRecognitionObjects()
             self.obj = [self.getFromId(node.get_id()) for node in obj]
@@ -178,8 +238,8 @@ class Hircus (Supervisor):
             pass
 
     def reward(self):
-        robot_rot = self.gnss_heading_device.getRollPitchYaw()
-        self.state = self.calculate_position(robot_rot)
+        self.rot = self.gnss_heading_device.getRollPitchYaw()
+        self.state = self.calculate_position(self.rot)
         #  goalreward Shape: [BATCH, HRZ]
         goalReward = torch.sqrt(torch.square((self.state[:, :, 0]-GOAL[:, :, 0])) +
                                 torch.square((self.state[:, :, 2]-GOAL[:, :, 1])))
@@ -280,19 +340,10 @@ class Hircus (Supervisor):
         self.checkreset()
 
 
-def add2pickle(file_name, dataframe, overwrite=False):
-    if os.path.isfile(f'./{file_name}') and not overwrite:
-        pkl_dataframe = pd.read_pickle(file_name)
-        pkl_dataframe = pkl_dataframe.append(dataframe, ignore_index=True)
-        pkl_dataframe.to_pickle(file_name, protocol=4)
-    else:
-        dataframe.to_pickle(file_name, protocol=4)
-    pass
-
-
 """Set the inference method and goal position."""
 opt_parser = optparse.OptionParser()
 opt_parser.add_option("--training", action="store_true", default=False, help="Enable trainer or model (default)")
+opt_parser.add_option("--ultrasound", action="store_true", default=False, help="Enable use of ultrasound sensor to get ped positon")
 opt_parser.add_option("--cmpstk", action="store_true", default=False, help="Enable NCS2 to Acclerate Model Inference")
 opt_parser.add_option("--goal", help="Specify Target Position - Format x,z")
 options, args = opt_parser.parse_args()
@@ -302,8 +353,8 @@ WEBOTS_STEP_TIME = 100
 DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME / 2)
 SCALE = 1000
 GNSS_RATE = 1
-HRZ = 20
-BATCH = 50
+HRZ = 15
+BATCH = 25
 if options.goal is None:
     GOAL = torch.tensor([uniform(-6, 3), uniform(-6, 6)]).repeat(BATCH, HRZ, 1)
 else:
@@ -327,7 +378,7 @@ if options.cmpstk:
     exec_net = ie.load_network(network=net, device_name='MYRIAD', num_requests=1)
     inference_request = exec_net.requests[0]
 
-controller = Hircus(train=options.training, accel=options.cmpstk)
+controller = Hircus(train=options.training, accel=options.cmpstk, ultra=options.ultrasound)
 fig = plt.figure(figsize=(16, 8.9), dpi=80)
 cmap = mpl.cm.magma
 norm = mpl.colors.Normalize(vmin=0, vmax=1)

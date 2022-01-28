@@ -71,7 +71,7 @@ class Pedestrian (Supervisor):
                               help="Specify the trajectory in the format [x1 y1, x2 y2, ...]")
         opt_parser.add_option("--straight", action="store_true", default=False,
                               help="Enable straight line from placed position in world")
-        opt_parser.add_option("--speed", type=float, default=0.5, help="Specify walking speed in [m/s]")
+        opt_parser.add_option("--speed", type=float, default=1.0, help="Specify walking speed in [m/s]")
         opt_parser.add_option("--step", type=int, help="Specify time step (otherwise world time step is used)")
         opt_parser.add_option("--dist", type=float, default=1., help="Specify walking distance if straight enabled")
         options, args = opt_parser.parse_args()
