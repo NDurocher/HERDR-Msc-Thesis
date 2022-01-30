@@ -1,6 +1,6 @@
 .idea
 *.zip
-*.png
+Test/**/*.png
 *.pkl
 herdr/
 *.onnx

@@ -23,7 +23,7 @@ class HERDRPlan:
         mu = torch.zeros(batches, self.horizon, 2)
         noise = torch.normal(mean=mu, std=cov)
         sequence = []
-        for i in range(0, self.horizon):
+        for i in range(self.horizon):
             if i == 0:
                 # continue
                 temp = self.beta * (self.mean[:, i+1] + noise[:, i, :]) + (1-self.beta) * self.mean[:, i]
