@@ -140,7 +140,8 @@ class Hircus (Supervisor):
         self.body_imu.enable(step_time)
         self.gnss_heading_device.enable(step_time)
         self.Keyboard.enable(step_time)
-        self.ultra.enable(step_time)
+        if not isinstance(self.ultra, type(None)):
+            self.ultra.enable(step_time)
         if not isinstance(self.camera, type(None)):
             self.camera.enable(step_time)
             if not self.is_ultra:

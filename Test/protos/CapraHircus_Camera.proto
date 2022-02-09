@@ -23,15 +23,15 @@ PROTO CapraHircus_Camera [
   Robot {
     translation IS translation
     rotation IS rotation
-	name IS name
+  name IS name
     model IS model    
     children [
       Camera {
-      	translation 0.19 3.12151e-07 0.29
-      	rotation -0.5199881374825417 0.5199881374825417 0.6776611791705899 -1.9504353071795864
-      	name "CAM"
-      	width 640
-      	height 480
+        translation 0.19 3.12151e-07 0.29
+        rotation -0.5199881374825417 0.5199881374825417 0.6776611791705899 -1.9504353071795864
+        name "CAM"
+        width 640
+        height 480
       }
       Gyro {
         translation 0.000000 0.000000 0.000000
@@ -1697,15 +1697,15 @@ PROTO CapraHircus_Camera [
         physics Physics {
           density -1
           mass 30.000000
-		  centerOfMass [
-		  0 0 0
-		  ]
+      centerOfMass [
+      0 0 0
+      ]
           inertiaMatrix [
             2.400000e-01 3.790000e-01 3.380000e-01
             1.870000e-02 1.450000e-02 4.330000e-03
           ]
         }
-		
+    
       }
       HingeJoint {
         jointParameters HingeJointParameters {
@@ -1836,10 +1836,10 @@ PROTO CapraHircus_Camera [
                       }
                       physics Physics {
                         density -1
-                        mass 2.500000		  
-						centerOfMass [
-		                  0 0 0
-		                ]
+                        mass 2.500000     
+            centerOfMass [
+                      0 0 0
+                    ]
                         inertiaMatrix [
                           1.740000e-02 1.740000e-02 3.350000e-02
                           0.000000e+00 0.000000e+00 0.000000e+00
@@ -1852,9 +1852,9 @@ PROTO CapraHircus_Camera [
                 physics Physics {
                   density -1
                   mass 0.200000
-				  	centerOfMass [
-				      0 0 0
-		            ]
+            centerOfMass [
+              0 0 0
+                ]
                   inertiaMatrix [
                     1.321600e-03 1.321600e-03 2.560000e-03
                     0.000000e+00 0.000000e+00 0.000000e+00
@@ -1868,7 +1868,7 @@ PROTO CapraHircus_Camera [
                 anchor -0.005330 0.200000 0.044680
               }
               device [
-			      RotationalMotor {
+            RotationalMotor {
                   name "base_front_rod_joint"
                   maxVelocity 2.0
                   minPosition -0.35
@@ -1882,7 +1882,7 @@ PROTO CapraHircus_Camera [
               endPoint Solid {
                 translation -0.005330 0.200000 0.044680
                 rotation 0.000000 -1.000000 0.000000 3.378992
-				children [
+        children [
                   Connector {
                     translation 0.17271 0 0
                     name "connector_front_rod"
@@ -1890,14 +1890,14 @@ PROTO CapraHircus_Camera [
                     isLocked TRUE
                     autoLock TRUE
                   }
-				]
+        ]
                 name "base_front_rod"
                 physics Physics {
                   density -1
-                  mass 0.267000		  
-				  centerOfMass [
-		           0 0 0
-		          ]
+                  mass 0.267000     
+          centerOfMass [
+               0 0 0
+              ]
                   inertiaMatrix [
                     3.200000e-03 3.100000e-03 1.080000e-04
                     0.000000e+00 0.000000e+00 -2.400000e-04
@@ -1910,9 +1910,9 @@ PROTO CapraHircus_Camera [
           physics Physics {
             density -1
             mass 1.500000
-			centerOfMass [
-		      0 0 0
-		    ]
+      centerOfMass [
+          0 0 0
+        ]
             inertiaMatrix [
               3.500000e-03 7.080000e-03 5.960000e-03
               1.660000e-04 2.600000e-03 1.700000e-04
@@ -2030,9 +2030,9 @@ PROTO CapraHircus_Camera [
                       physics Physics {
                         density -1
                         mass 2.500000
-						centerOfMass [
-						  0 0 0
-						]
+            centerOfMass [
+              0 0 0
+            ]
                         inertiaMatrix [
                           1.740000e-02 1.740000e-02 3.350000e-02
                           0.000000e+00 0.000000e+00 0.000000e+00
@@ -2045,9 +2045,9 @@ PROTO CapraHircus_Camera [
                 physics Physics {
                   density -1
                   mass 0.200000
-				  centerOfMass [
-		           0 0 0
-		          ]
+          centerOfMass [
+               0 0 0
+              ]
                   inertiaMatrix [
                     1.321600e-03 1.321600e-03 2.560000e-03
                     0.000000e+00 0.000000e+00 0.000000e+00
@@ -2110,9 +2110,9 @@ PROTO CapraHircus_Camera [
                 physics Physics {
                   density -1
                   mass 2.500000
-				  centerOfMass [
-		           0 0 0
-		          ]
+          centerOfMass [
+               0 0 0
+              ]
                   inertiaMatrix [
                     1.740000e-02 1.740000e-02 3.350000e-02
                     0.000000e+00 0.000000e+00 0.000000e+00
@@ -2184,9 +2184,9 @@ PROTO CapraHircus_Camera [
                 physics Physics {
                   density -1
                   mass 2.500000
-				  centerOfMass [
-		            0 0 0
-		          ]
+          centerOfMass [
+                0 0 0
+              ]
                   inertiaMatrix [
                     1.740000e-02 1.740000e-02 3.350000e-02
                     0.000000e+00 0.000000e+00 0.000000e+00
@@ -2223,18 +2223,18 @@ PROTO CapraHircus_Camera [
                     model "connector_rod"
                     isLocked TRUE
                     autoLock TRUE
-					distanceTolerance 0.05
-					axisTolerance     0.2
-					
+          distanceTolerance 0.05
+          axisTolerance     0.2
+          
                   }
                 ]
                 name "base_back_rod"
                 physics Physics {
                   density -1
                   mass 0.267000
-				  centerOfMass [
-		           0 0 0
-		          ] 
+          centerOfMass [
+               0 0 0
+              ] 
                   inertiaMatrix [
                     3.200000e-03 3.100000e-03 1.080000e-04
                     0.000000e+00 0.000000e+00 -2.400000e-04
@@ -2247,9 +2247,9 @@ PROTO CapraHircus_Camera [
           physics Physics {
             density -1
             mass 4.500000
-		    centerOfMass [
-		      0 0 0
-		    ]
+        centerOfMass [
+          0 0 0
+        ]
             inertiaMatrix [
               7.000000e-02 2.120000e-01 1.620000e-01
               0.000000e+00 -2.000000e-02 -8.790000e-03
@@ -2257,7 +2257,7 @@ PROTO CapraHircus_Camera [
           }
         }
       }
-	  Transform {
+    Transform {
         translation 0 0 0.2
         children IS topExtension
       }
@@ -2267,7 +2267,7 @@ PROTO CapraHircus_Camera [
       }
     ]
 
-	boundingObject Transform {
+  boundingObject Transform {
       translation 0.000000 0.000000 0.100000
       rotation 0.000000 1.000000 0.000000 0.000000
       children [
@@ -2279,7 +2279,7 @@ PROTO CapraHircus_Camera [
     physics Physics {
     }
 
-	controller IS controller
+  controller IS controller
     controllerArgs IS controllerArgs
     customData IS customData
     supervisor IS supervisor
