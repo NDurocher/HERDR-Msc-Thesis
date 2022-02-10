@@ -17,17 +17,25 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.24015524416873996 -0.9404610112887463 -0.24053803221944242 4.649452827098786
-  position 21.55449978260929 11.56414701967102 -0.45836849516253986
+  orientation 0.23903804164927434 -0.94087831693509 -0.2400183479775493 4.6474006479260215
+  position 26.19771704430799 14.115587896701367 -0.5402199131630405
   near 1
   follow "Thymio II"
   followType "Mounted Shot"
 }
 DEF Logger Robot {
   translation 0 10 0
-  controller "Logger"
+  children [
+    Camera {
+      rotation 0.577349935856137 0.577349935856137 0.5773509358560258 -2.094395307179586
+      width 500
+      height 500
+    }
+  ]
+  controller "<extern>"
   customData "182.4317626953125"
   supervisor TRUE
+  synchronization FALSE
 }
 TexturedBackground {
 }
@@ -847,7 +855,6 @@ DEF Hircus Robot {
   controller "Hircus"
   controllerArgs [
     "--training"
-    "--goal=-4.7,-0.3"
   ]
   supervisor TRUE
 }

@@ -1,9 +1,11 @@
 .idea
 *.zip
 Test/**/*.png
+Test/**/*.jpg
 *.pkl
 herdr/
 *.onnx
 *.mapping
 *Herdr.xml
 *Herdr.bin
+*.h5

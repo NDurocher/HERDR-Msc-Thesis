@@ -7,7 +7,7 @@ from torchvision.utils import save_image
 import sys
 import os
 import numpy as np
-import pickle
+import h5py
 # from transforms3d.euler import mat2euler, axangle2euler
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +17,7 @@ import matplotlib.animation as animation
 from random import uniform
 from dataclasses import make_dataclass
 import optparse
+import cv2
 
 
 dir_name = Path(Path.cwd()).parent.parent.parent
@@ -49,8 +50,6 @@ class Hircus (Supervisor):
     def __init__(self, train=True, accel=False, ultra=False):
         """Constructor: initialize constants."""
         Supervisor.__init__(self)
-        self.yolo = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-        self.yolo.classes = [0]
         self.df = pd.DataFrame(columns=["Actions", "Ground_Truth", "Image_Name"])
         self.stateR_df = pd.DataFrame(columns=["State", "Event_Prob", "Target_Pos"])
         self.train = train
@@ -97,6 +96,8 @@ class Hircus (Supervisor):
     def set_infer(self):
         if self.train:
             if self.is_ultra:
+                self.yolo = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+                self.yolo.classes = [0]
                 return self.yolo_recognize
             else:
                 return self.recognize
@@ -220,9 +221,9 @@ class Hircus (Supervisor):
 
     def recognize(self):
         self.event = torch.zeros((BATCH, HRZ))
-        # self.recog = self.camera.getRecognitionObjects()
-        dist = self.ultra.getValue()
-        print(dist)
+        self.recog = self.camera.getRecognitionObjects()
+        # dist = self.ultra.getValue()
+        # print(dist)
         if self.recog:
             obj = self.camera.getRecognitionObjects()
             self.obj = [self.getFromId(node.get_id()) for node in obj]
@@ -311,11 +312,23 @@ class Hircus (Supervisor):
     def todataset(self):
         # if self.recognize() and self.train:
         self.now = datetime.now()
-        for i, sample in enumerate(self.actions):
-            in2df = pd.DataFrame([Ped_sample(self.actions[i, :, :].detach(),
-                                             self.event[i, :].detach(), f"{self.now}.png")])
-            self.df = self.df.append(in2df, ignore_index=True)
-        save_image(self.frame[0]/255, '%s.png' % ("./images/"+str(self.now)))
+        group = file.create_group(f"{self.now}")
+        d1 = file.create_dataset(f"{self.now}/actions", shape=self.actions.shape)
+        d1[...] = self.actions.detach().numpy()
+        d2 = file.create_dataset(f"{self.now}/gnd", shape=self.event.shape)
+        d2[...] = self.event.detach().numpy()
+        maxlen = len(str(self.now))
+        dtipe = 'S{0}'.format(maxlen)
+        d3 = file.create_dataset(f"{self.now}/img", (BATCH,), dtype=dtipe)
+        d3[...] = f"{self.now}.jpg"
+        # d3 = file.create_dataset(f"{self.now}/img", data=np.uint8(self.frame[0].numpy()))
+
+        # for i, sample in enumerate(self.actions):
+        #     in2df = pd.DataFrame([Ped_sample(self.actions[i, :, :].detach(),
+        #                                      self.event[i, :].detach(), f"{self.now}.png")])
+        #     self.df = self.df.append(in2df, ignore_index=True)
+        # save_image(self.frame[0]/255, f'./images/{self.now}.jpg')
+        cv2.imwrite(f'./images/{self.now}.jpg', self.frame[0].permute(1, 2, 0).numpy())
 
     def Herdr(self):
         frame = np.asarray(np.frombuffer(self.camera.getImage(), dtype=np.uint8))
@@ -332,7 +345,7 @@ class Hircus (Supervisor):
         # self.update_motors(float(self.actions[best_r_arg, 0, 0]), float(self.actions[best_r_arg, 0, 1]))
 
         # Save To DataSet
-        # self.todataset()
+        self.todataset()
 
         # Update action mean and check for reset
         r = - r
@@ -350,12 +363,12 @@ opt_parser.add_option("--goal", help="Specify Target Position - Format x,z")
 options, args = opt_parser.parse_args()
 
 WHEEL_RADIUS = 0.16  # m
-WEBOTS_STEP_TIME = 100
-DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME / 2)
+WEBOTS_STEP_TIME = 200
+DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME * 2)
 SCALE = 1000
 GNSS_RATE = 1
-HRZ = 15
-BATCH = 25
+HRZ = 10
+BATCH = 50
 if options.goal is None:
     GOAL = torch.tensor([uniform(-6, 3), uniform(-6, 6)]).repeat(BATCH, HRZ, 1)
 else:
@@ -384,13 +397,14 @@ fig = plt.figure(figsize=(16, 8.9), dpi=80)
 cmap = mpl.cm.magma
 norm = mpl.colors.Normalize(vmin=0, vmax=1)
 cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
-writer = animation.FFMpegWriter(fps=5)
-writer.setup(fig, 'actions_cam_view.mp4')
+file = h5py.File(f'hdf5s/{datetime.now()}.h5', 'w')
+# writer = animation.FFMpegWriter(fps=5)
+# writer.setup(fig, 'actions_cam_view.mp4')
 while not controller.step(WEBOTS_STEP_TIME) == -1:
     controller.Herdr()
-    controller.customdata.setSFString(str(torch.sum(controller.event).item()))
-    writer.grab_frame()
-
-writer.finish()
+    # controller.customdata.setSFString(str(torch.sum(controller.event).item()))
+    # writer.grab_frame()
+file.close()
+# writer.finish()
 
 
