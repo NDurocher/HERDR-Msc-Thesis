@@ -3,6 +3,7 @@
 Test/**/*.png
 Test/**/*.jpg
 *.pkl
+Test/**/*.pth
 herdr/
 *.onnx
 *.mapping
