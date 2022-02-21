@@ -71,9 +71,11 @@ class Pedestrian (Supervisor):
                               help="Specify the trajectory in the format [x1 y1, x2 y2, ...]")
         opt_parser.add_option("--straight", action="store_true", default=False,
                               help="Enable straight line from placed position in world")
-        opt_parser.add_option("--speed", type=float, default=1.0, help="Specify walking speed in [m/s]")
         opt_parser.add_option("--step", type=int, help="Specify time step (otherwise world time step is used)")
+        # ## Added by Nathan
+        opt_parser.add_option("--speed", type=float, default=1.0, help="Specify walking speed in [m/s]")
         opt_parser.add_option("--dist", type=float, default=1., help="Specify walking distance if straight enabled")
+        # ## END add
         options, args = opt_parser.parse_args()
         if not options.trajectory or len(options.trajectory.split(',')) < 2:
             print("You should specify the trajectory using the '--trajectory' option.")
@@ -87,6 +89,7 @@ class Pedestrian (Supervisor):
             self.time_step = int(self.getBasicTimeStep())
         point_list = options.trajectory.split(',')
 
+        # ## Added by Nathan
         self.root_node_ref = self.getSelf()
         self.root_translation_field = self.root_node_ref.getField("translation")
         self.root_rotation_field = self.root_node_ref.getField("rotation")
@@ -95,6 +98,8 @@ class Pedestrian (Supervisor):
             position = self.root_translation_field.getSFVec3f()
             rotation = self.root_rotation_field.getSFRotation()
             rotation = np.array(rotation[0:3]) * rotation[3]
+            position[2] = uniform(-1.75, 1.75)
+            position[0] = uniform(-8, 6)
             x = [str(position[0]), str(position[0] + options.dist * np.sin(rotation[1]))]  # world x-axis
             y = [str(position[2]), str(position[2] + options.dist * np.cos(rotation[1]))]  # world z-axis
         else:
@@ -102,6 +107,8 @@ class Pedestrian (Supervisor):
             y = [str(uniform(-4, 4)) for p in range(0, 2)]  # world z-axis
 
         point_list = [''+x[0]+' '+y[0], x[1]+' '+y[1]]
+        # ## END add
+
         self.number_of_waypoints = len(point_list)
         self.waypoints = []
         for i in range(0, self.number_of_waypoints):

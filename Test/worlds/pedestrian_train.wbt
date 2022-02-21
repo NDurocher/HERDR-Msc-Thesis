@@ -18,7 +18,7 @@ WorldInfo {
 }
 Viewpoint {
   orientation 0.23903804164927434 -0.94087831693509 -0.2400183479775493 4.6474006479260215
-  position 26.19771704430799 14.115587896701367 -0.5402199131630405
+  position 26.642380076299794 13.301230054850402 -0.478355744256909
   near 1
   follow "Thymio II"
   followType "Mounted Shot"
@@ -50,7 +50,8 @@ CircleArena {
   wallHeight 1
 }
 DEF Ped1 Pedestrian {
-  translation 2.65 1.33909 3.6
+  translation 10.47 1.33909 3.6
+  controller "void"
   controllerArgs [
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
@@ -71,8 +72,9 @@ DEF Ped1 Pedestrian {
   headAngle 0.16363636363636572
 }
 DEF Ped2 Pedestrian {
-  translation 2.56 1.33909 -3.49
+  translation 9.92 1.33909 -3.49
   name "pedestrian(7)"
+  controller "void"
   controllerArgs [
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
@@ -94,8 +96,9 @@ DEF Ped2 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped3 Pedestrian {
-  translation -4.82 1.33909 -2.49
+  translation 10.82 1.33909 -2.49
   name "pedestrian(8)"
+  controller "void"
   controllerArgs [
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
@@ -116,8 +119,9 @@ DEF Ped3 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped4 Pedestrian {
-  translation -3.82 1.33909 1.48
+  translation 10.96 1.33909 1.48
   name "pedestrian(9)"
+  controller "void"
   controllerArgs [
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
@@ -138,8 +142,9 @@ DEF Ped4 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped5 Pedestrian {
-  translation -0.35 1.33909 3.4
+  translation 10.38 1.33909 3.4
   name "pedestrian(10)"
+  controller "void"
   controllerArgs [
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
@@ -161,9 +166,11 @@ DEF Ped5 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped0 Pedestrian {
-  translation -1.1 1.33909 -4.24
+  translation -2.69 1.33909 -0.71
+  rotation 0 1 0 1.5708
   name "pedestrian(11)"
   controllerArgs [
+    "--dist=15"
     "--straight"
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"

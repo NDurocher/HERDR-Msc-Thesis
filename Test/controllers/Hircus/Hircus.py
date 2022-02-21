@@ -227,15 +227,15 @@ class Hircus (Supervisor):
         if self.recog:
             obj = self.camera.getRecognitionObjects()
             self.obj = [self.getFromId(node.get_id()) for node in obj]
-            try:
-                for ped in self.obj:
+            for ped in self.obj:
+                try:
                     ped_pos = torch.tensor(ped.getPosition())
                     ped_pos = ped_pos.repeat(BATCH, HRZ, 1)
                     SFRot = ped.getField("rotation").getSFRotation()
                     ped_ori = torch.tensor(SFRot[0:3]) * SFRot[3]
                     self.event = torch.logical_or(self.is_safe(ped_pos, ped_ori), self.event).float()
-            except:
-                pass
+                except:
+                    pass
         else:
             pass
 
@@ -255,7 +255,7 @@ class Hircus (Supervisor):
     def calculate_position(self, rot):
         new_pos = torch.tensor(self.hircus.getPosition())
         new_state = torch.cat((new_pos.T, torch.tensor([-rot[2]])))
-        batch_state = new_state.repeat(BATCH, HRZ, 1).transpose(1,2)
+        batch_state = new_state.repeat(BATCH, HRZ, 1).transpose(1, 2)
         # Y-axis is vertical, movement is in X-Z plane
         # [X Y Z Phi]
         for i in range(0, HRZ - 1):
@@ -286,7 +286,7 @@ class Hircus (Supervisor):
         return check.int()
 
     def reset(self):
-        # self.simulationReset()
+        self.simulationReset()
         for ped in self.peds:
             ped.restartController()
         # add2pickle("Herdr_data_train.pkl", self.df)
@@ -364,11 +364,11 @@ options, args = opt_parser.parse_args()
 
 WHEEL_RADIUS = 0.16  # m
 WEBOTS_STEP_TIME = 200
-DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME * 2)
+DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME)
 SCALE = 1000
 GNSS_RATE = 1
 HRZ = 10
-BATCH = 50
+BATCH = 5
 if options.goal is None:
     GOAL = torch.tensor([uniform(-6, 3), uniform(-6, 6)]).repeat(BATCH, HRZ, 1)
 else:
@@ -397,13 +397,13 @@ fig = plt.figure(figsize=(16, 8.9), dpi=80)
 cmap = mpl.cm.magma
 norm = mpl.colors.Normalize(vmin=0, vmax=1)
 cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
-file = h5py.File(f'hdf5s/{datetime.now()}.h5', 'w')
-# writer = animation.FFMpegWriter(fps=5)
+file = h5py.File(f'./hdf5s/{datetime.now()}.h5', 'w')
+# writer = animation.FFMpegWriter(fps=2)
 # writer.setup(fig, 'actions_cam_view.mp4')
 while not controller.step(WEBOTS_STEP_TIME) == -1:
+    # writer.grab_frame()
     controller.Herdr()
     # controller.customdata.setSFString(str(torch.sum(controller.event).item()))
-    # writer.grab_frame()
 file.close()
 # writer.finish()
 
