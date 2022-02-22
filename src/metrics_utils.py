@@ -92,11 +92,11 @@ def plot_action_cam_view(actions, frame, event_probs, steer_angle, current_speed
     for p, e in zip(pos.numpy(), event_probs.numpy()):
         points = np.expand_dims(np.array([p[:, 0], p[:, 1]]).T, 1)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = LineCollection(segments, cmap=plt.get_cmap('magma'), norm=plt.Normalize(0, 1))
+        lc = LineCollection(segments, cmap=plt.get_cmap('YlOrRd'), norm=plt.Normalize(0, 1))
         lc.set_array(e.T)
         lc.set_linewidth(1)
         plt.gca().add_collection(lc)
-    plt.imshow(frame.int().numpy().transpose(1, 2, 0), extent=[-3, 3, 0, 4.5])
+    plt.imshow(frame.int().numpy().transpose(1, 2, 0), extent=[-1.5, 1.5, 0, 2])
     plt.autoscale(False)
     plt.title('Probabilities of Unsafe Position')
     # cmap = mpl.cm.magma

@@ -2,10 +2,11 @@
 *.zip
 Test/**/*.png
 Test/**/*.jpg
+src/**/*.jpg
 *.pkl
 Test/**/*.pth
 herdr/
-*.onnx
+Test/**/*.onnx
 *.mapping
 *Herdr.xml
 *Herdr.bin

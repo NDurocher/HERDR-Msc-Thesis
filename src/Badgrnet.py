@@ -16,11 +16,11 @@ class HERDR(nn.Module):
         self.obs_pre = nn.Sequential(
             # nn.LayerNorm([3, 240, 320]),
             nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
-            # nn.MaxPool2d(4, stride=2),
+            nn.MaxPool2d(4, stride=2),
             # nn.LazyBatchNorm2d(),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
-            # nn.MaxPool2d(4, stride=2),
+            nn.MaxPool2d(4, stride=2),
             # nn.LazyBatchNorm2d(),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
@@ -68,7 +68,7 @@ class HERDR(nn.Module):
         Hx, Cx = torch.chunk(obs, 2, dim=1)
         Hx = Hx.repeat(1, 1, 1)
         Cx = Cx.repeat(1, 1, 1)
-        action = self.action_pre(self.normalize(action))
+        action = self.action_pre(action)
         # put "time" first
         action = action.transpose(1, 0)
         out, (_, _) = self.lstm(action, (Hx, Cx))
@@ -81,7 +81,7 @@ class HERDR(nn.Module):
 
 if __name__ == "__main__":
     def impreprosses(im):
-        im = cv2.resize(im, (320, 240))
+        im = cv2.resize(im, (1280, 720))
         im = loader(im).float()
         im = im.unsqueeze(0)
         im = im.repeat(batches, 1, 1, 1)
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     hor = 20
     planner = HERDRPlan(Horizon=hor)
     # model = HERDR(Horizon=hor, RnnDim=64)
-    model = torch.load("../Test/controllers/Hircus/Herdr_cross06-01-2022--18 50 17.pth",
+    model = torch.load("../Test/controllers/Hircus/Herdr21-02-2022--16 37 13.pth",
                        map_location=torch.device('cpu'))
     model.model_out = nn.Sequential(
         model.model_out,

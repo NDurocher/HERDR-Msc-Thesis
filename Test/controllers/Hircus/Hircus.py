@@ -105,7 +105,7 @@ class Hircus (Supervisor):
             if self.accel:
                 return self.accel_infer
             else:
-                self.net = torch.load('Herdr_cross06-01-2022--18 50 17.pth', map_location=torch.device('cpu'))
+                self.net = torch.load('Herdr21-02-2022--16 37 13.pth', map_location=torch.device('cpu'))
                 self.net.model_out = nn.Sequential(
                     self.net.model_out,
                     nn.Sigmoid()
@@ -118,6 +118,8 @@ class Hircus (Supervisor):
         self.event = torch.tensor(output[output_blob]).squeeze(2)
 
     def model_infer(self):
+        indices = torch.tensor([2, 1, 0])
+        self.frame = torch.index_select(self.frame, 1, indices)
         self.event = self.net(self.frame, self.actions)[:, :, 0].detach()
 
     def load_webots_devices(self):
@@ -222,8 +224,6 @@ class Hircus (Supervisor):
     def recognize(self):
         self.event = torch.zeros((BATCH, HRZ))
         self.recog = self.camera.getRecognitionObjects()
-        # dist = self.ultra.getValue()
-        # print(dist)
         if self.recog:
             obj = self.camera.getRecognitionObjects()
             self.obj = [self.getFromId(node.get_id()) for node in obj]
@@ -298,9 +298,9 @@ class Hircus (Supervisor):
 
     def checkreset(self):
         pos = self.hircus.getPosition()
-        # if np.sqrt(pos[0] ** 2 + pos[2] ** 2) >= 9.5:
-        #     self.simulationReset()
-        #     self.reset()
+        if np.sqrt(pos[0] ** 2 + pos[2] ** 2) >= 9.5:
+            self.simulationReset()
+            self.reset()
         # if self.getTime() > 50:
         #     self.reset()
         dist2goal = np.sqrt((pos[0] - GOAL[0, 0, 0]) ** 2 + (pos[2] - GOAL[0, 0, 1]) ** 2)
@@ -345,7 +345,7 @@ class Hircus (Supervisor):
         # self.update_motors(float(self.actions[best_r_arg, 0, 0]), float(self.actions[best_r_arg, 0, 1]))
 
         # Save To DataSet
-        self.todataset()
+        # self.todataset()
 
         # Update action mean and check for reset
         r = - r
@@ -368,9 +368,9 @@ DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME)
 SCALE = 1000
 GNSS_RATE = 1
 HRZ = 10
-BATCH = 5
+BATCH = 25
 if options.goal is None:
-    GOAL = torch.tensor([uniform(-6, 3), uniform(-6, 6)]).repeat(BATCH, HRZ, 1)
+    GOAL = torch.tensor([-5, uniform(-3, 3)]).repeat(BATCH, HRZ, 1)
 else:
     str_list = options.goal.split(",")
     goal_list = []
@@ -394,17 +394,17 @@ if options.cmpstk:
 
 controller = Hircus(train=options.training, accel=options.cmpstk, ultra=options.ultrasound)
 fig = plt.figure(figsize=(16, 8.9), dpi=80)
-cmap = mpl.cm.magma
+cmap = mpl.cm.YlOrRd
 norm = mpl.colors.Normalize(vmin=0, vmax=1)
 cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
-file = h5py.File(f'./hdf5s/{datetime.now()}.h5', 'w')
-# writer = animation.FFMpegWriter(fps=2)
-# writer.setup(fig, 'actions_cam_view.mp4')
+# file = h5py.File(f'./hdf5s/{datetime.now()}.h5', 'w')
+writer = animation.FFMpegWriter(fps=2)
+writer.setup(fig, 'actions_cam_view.mp4')
 while not controller.step(WEBOTS_STEP_TIME) == -1:
-    # writer.grab_frame()
     controller.Herdr()
+    writer.grab_frame()
     # controller.customdata.setSFString(str(torch.sum(controller.event).item()))
-file.close()
-# writer.finish()
+# file.close()
+writer.finish()
 
 

@@ -17,8 +17,8 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.23903804164927434 -0.94087831693509 -0.2400183479775493 4.6474006479260215
-  position 26.642380076299794 13.301230054850402 -0.478355744256909
+  orientation 0.31576097121356356 -0.8565246189050614 -0.40824084345862105 4.311808969618641
+  position 20.11134725378637 21.068489317629822 -2.6466054597139816
   near 1
   follow "Thymio II"
   followType "Mounted Shot"
@@ -32,7 +32,6 @@ DEF Logger Robot {
       height 500
     }
   ]
-  controller "<extern>"
   customData "182.4317626953125"
   supervisor TRUE
   synchronization FALSE
@@ -72,7 +71,8 @@ DEF Ped1 Pedestrian {
   headAngle 0.16363636363636572
 }
 DEF Ped2 Pedestrian {
-  translation 9.92 1.33909 -3.49
+  translation 2.9 1.33909 -0.29
+  rotation 0 1 0 -1.5707953071795862
   name "pedestrian(7)"
   controller "void"
   controllerArgs [
@@ -96,10 +96,12 @@ DEF Ped2 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped3 Pedestrian {
-  translation 10.82 1.33909 -2.49
+  translation -2.66999 1.33909 0.390013
+  rotation 0 1 0 1.5708
   name "pedestrian(8)"
-  controller "void"
   controllerArgs [
+    "--dist=15"
+    "--straight"
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
   ]
@@ -119,7 +121,8 @@ DEF Ped3 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped4 Pedestrian {
-  translation 10.96 1.33909 1.48
+  translation -1.50382 1.33909 -1.235
+  rotation 0 1 0 -1.047195307179586
   name "pedestrian(9)"
   controller "void"
   controllerArgs [
@@ -142,7 +145,7 @@ DEF Ped4 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped5 Pedestrian {
-  translation 10.38 1.33909 3.4
+  translation 1.15 1.33909 1.5
   name "pedestrian(10)"
   controller "void"
   controllerArgs [
@@ -190,7 +193,7 @@ DEF Ped0 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Hircus Robot {
-  translation 5 0.159808 0
+  translation 6 0.155199 0
   rotation 0 0.7078803601535063 0.7063323549922813 3.13513
   children [
     Camera {
@@ -859,7 +862,7 @@ DEF Hircus Robot {
   }
   physics Physics {
   }
-  controller "Hircus"
+  controller "<extern>"
   controllerArgs [
     "--training"
   ]

@@ -144,17 +144,27 @@ class HDF5Dataset(data.Dataset):
 if __name__ ==  "__main__":
     from torch.utils import data
 
-    num_epochs = 1
-    loader_params = {'batch_size': 32, 'shuffle': False, 'num_workers': 4}
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
+        print("Use GPU")
+    else:
+        device = torch.device('cpu')
+        print("Use CPU")
 
-    dataset = HDF5Dataset('hdf5s/', recursive=False, load_data=False,
-                          data_cache_size=4, transform=None)
+    loader_params = {'batch_size': 100, 'shuffle': False}  # 'num_workers': 1
+    dataset = HDF5Dataset('/Users/NathanDurocher/Documents/GitHub/HERDR/Test/controllers/Hircus/hdf5s/',
+                          recursive=False, load_data=True,
+                          data_cache_size=1, transform=None)
 
     data_loader = data.DataLoader(dataset, **loader_params)
-    print(len(dataset))
-    # for i in range(num_epochs):
-    #     for x, y, z in data_loader:
-    #         print(f'x shape: {x.shape}')
-    #         print(f'y shape: {y.shape}')
-    #         print(f'z shape: {z.shape}')
-    print("END")
+
+    total = len(dataset)
+    print(f'Total # of samples: {total * 10}')
+    positive_total = 0
+    ii = 0
+    for x, y, z in data_loader:
+        positive_total += torch.count_nonzero(z)
+        if ii == 2:
+            break
+        ii += 1
+

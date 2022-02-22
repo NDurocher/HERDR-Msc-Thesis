@@ -103,7 +103,7 @@ class Pedestrian (Supervisor):
             x = [str(position[0]), str(position[0] + options.dist * np.sin(rotation[1]))]  # world x-axis
             y = [str(position[2]), str(position[2] + options.dist * np.cos(rotation[1]))]  # world z-axis
         else:
-            x = [str(uniform(-6, 6)) for p in range(0, 2)]  # world x-axis
+            x = [str(uniform(-5, 6)) for p in range(0, 2)]  # world x-axis
             y = [str(uniform(-4, 4)) for p in range(0, 2)]  # world z-axis
 
         point_list = [''+x[0]+' '+y[0], x[1]+' '+y[1]]
