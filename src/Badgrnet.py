@@ -17,21 +17,16 @@ class HERDR(nn.Module):
             # nn.LayerNorm([3, 240, 320]),
             nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
             nn.MaxPool2d(4, stride=2),
-            # nn.LazyBatchNorm2d(),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
             nn.MaxPool2d(4, stride=2),
-            # nn.LazyBatchNorm2d(),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
-            # nn.LazyBatchNorm2d(),
             nn.ReLU(),
             nn.Flatten(),
             nn.LazyLinear(256),
-            # nn.LazyBatchNorm1d(),
             nn.ReLU(),
             nn.Linear(256, 128),
-            # nn.LazyBatchNorm1d()
         )
         self.action_pre = nn.Sequential(
             # nn.LayerNorm([20, 2]),
@@ -91,7 +86,7 @@ if __name__ == "__main__":
     hor = 20
     planner = HERDRPlan(Horizon=hor)
     # model = HERDR(Horizon=hor, RnnDim=64)
-    model = torch.load("../Test/controllers/Hircus/Herdr21-02-2022--16 37 13.pth",
+    model = torch.load("../Test/controllers/Hircus/Herdr_Best_Feb22.pth",
                        map_location=torch.device('cpu'))
     model.model_out = nn.Sequential(
         model.model_out,

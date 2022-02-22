@@ -164,7 +164,7 @@ class lstm(HERDR):
 
 
 if __name__ == "__main__":
-    modl_name = "Herdr21-02-2022--16 37 13.pth"
+    modl_name = "Herdr_Best_Feb22.pth"
     modl = torch.load(f"../Test/controllers/Hircus/{modl_name}",
                        map_location=torch.device('cpu'))
     # main(modl, modl_name)

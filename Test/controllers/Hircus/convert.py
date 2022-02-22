@@ -8,7 +8,7 @@ from Badgrnet import HERDR
 
 if __name__ == '__main__':
     model = torch.load(
-        "Herdr21-02-2022--16 37 13.pth",
+        "Herdr_Best_Feb22.pth",
         map_location=torch.device('cpu'))
     model.model_out = nn.Sequential(
         model.model_out,

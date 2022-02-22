@@ -105,7 +105,7 @@ class Hircus (Supervisor):
             if self.accel:
                 return self.accel_infer
             else:
-                self.net = torch.load('Herdr21-02-2022--16 37 13.pth', map_location=torch.device('cpu'))
+                self.net = torch.load('Herdr_Best_Feb22.pth', map_location=torch.device('cpu'))
                 self.net.model_out = nn.Sequential(
                     self.net.model_out,
                     nn.Sigmoid()
