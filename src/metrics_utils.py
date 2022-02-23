@@ -19,7 +19,7 @@ def plot_trajectory(robot_traj, line_values, ped_traj, goal, label, traj_length,
     plt.clf()
     points = np.array([robot_traj[:, 2], robot_traj[:, 0]]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    lc = LineCollection(segments, cmap=plt.get_cmap('magma'), norm=plt.Normalize(0, line_values.max()))
+    lc = LineCollection(segments, cmap=plt.get_cmap('YlOrRd'), norm=plt.Normalize(0, line_values.max()))
     lc.set_array(line_values)
     lc.set_linewidth(3)
     plt.figure(1)
@@ -54,7 +54,7 @@ def plot_actions(position, line_values, label, GOAL, directory_name):
     for pos, lv in zip(position.transpose(1, 0, 2), line_values):
         points = np.expand_dims(np.array([pos[:, 2], pos[:, 0]]).T, 1)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = LineCollection(segments, cmap=plt.get_cmap('magma'), norm=plt.Normalize(0, 1))
+        lc = LineCollection(segments, cmap=plt.get_cmap('YlOrRd'), norm=plt.Normalize(0, 1))
         lc.set_array(lv.T)
         lc.set_linewidth(1)
         plt.gca().add_collection(lc)

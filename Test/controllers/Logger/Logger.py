@@ -60,11 +60,13 @@ class Logger (Supervisor):
         frame = torch.index_select(frame, 0, torch.tensor([2, 1, 0]))
         save_image(frame / 255, 'topview.jpg')
 
+
 def pathlength(x, y):
     n = len(x)
     lv = [np.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2) for i in range(1, n)]
     L = sum(lv)
     return L
+
 
 def is_float(value):
     try:
@@ -73,11 +75,11 @@ def is_float(value):
     except:
         return 0
 
+
 Hircus_traj = []
 ped_trajs = []
 min_dist = []
 in_collision = []
-# Hircuspos = np.zeros((2,))
 writer_dist = animation.FFMpegWriter(fps=5)
 writer_score = animation.FFMpegWriter(fps=5)
 fig = plt.figure(figsize=(16, 8.9), dpi=80)
@@ -87,11 +89,11 @@ controller = Logger()
 GOAL = controller.cc.getPosition()
 unsafe_score = []
 while not controller.step(controller.timestep) == -1:
-    Hircuspos = controller.hircus.getPosition()
+    GOAL = controller.cc.getPosition()
+    Hircuspos = np.asarray(controller.hircus.getPosition()) - np.asarray(GOAL)
     Hircus_traj.append(Hircuspos)
     if not controller.getTime() == 0.1:
-        ped_trajs.append([p.getPosition() for p in controller.peds])
-    GOAL = controller.cc.getPosition()
+        ped_trajs.append([p.getPosition() - np.asarray(GOAL) for p in controller.peds])
     out_log = controller.log(Hircuspos, controller.peds)
     min_dist.append(out_log[0])
     in_collision.append(out_log[1])
@@ -99,14 +101,13 @@ while not controller.step(controller.timestep) == -1:
     controller.grab_frame()
     traj_length = pathlength(np.asarray(Hircus_traj)[:, 0], np.asarray(Hircus_traj)[:, 2])
     unsafe_score.append(is_float(controller.customdata.getSFString()))
-    plot_trajectory(np.asarray(Hircus_traj), np.asarray(min_dist), np.asarray(ped_trajs), GOAL, "Clearance",
-                    traj_length, collision=in_collision.count(1))
+    plot_trajectory(np.asarray(Hircus_traj), np.asarray(min_dist), np.asarray(ped_trajs), np.aray([0, 0, 0]),
+                    "Clearance", traj_length, collision=in_collision.count(1))
     writer_dist.grab_frame()
-    plot_trajectory(np.asarray(Hircus_traj), np.asarray(unsafe_score), np.asarray(ped_trajs), GOAL, "Clearance",
-                    traj_length, collision=in_collision.count(1))
+    plot_trajectory(np.asarray(Hircus_traj), np.asarray(unsafe_score), np.asarray(ped_trajs), np.array([0, 0, 0]),
+                    "Clearance", traj_length, collision=in_collision.count(1))
     writer_score.grab_frame()
 writer_dist.finish()
 writer_score.finish()
-# GOAL = np.array([Hircuspos[0], Hircuspos[2]])
 
 
