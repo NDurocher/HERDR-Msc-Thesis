@@ -105,7 +105,7 @@ class Hircus (Supervisor):
             if self.accel:
                 return self.accel_infer
             else:
-                self.net = torch.load('Herdr_Best_Feb22.pth', map_location=torch.device('cpu'))
+                self.net = torch.load('Herdr_Feb22_640_2Hr.pth', map_location=torch.device('cpu'))
                 self.net.model_out = nn.Sequential(
                     self.net.model_out,
                     nn.Sigmoid()
@@ -114,7 +114,9 @@ class Hircus (Supervisor):
                 return self.model_infer
 
     def accel_infer(self):
-        output = exec_net.infer(inputs={"img": self.frame, "actions": self.actions})
+        indices = torch.tensor([2, 1, 0])
+        self.frame = torch.index_select(self.frame, 1, indices)
+        output = exec_net.infer(inputs={"img": self.frame.half(), "actions": self.actions.half()})
         self.event = torch.tensor(output[output_blob]).squeeze(2)
 
     def model_infer(self):
@@ -368,9 +370,9 @@ DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME)
 SCALE = 1000
 GNSS_RATE = 1
 HRZ = 10
-BATCH = 25
+BATCH = 70
 if options.goal is None:
-    GOAL = torch.tensor([-5, uniform(-3, 3)]).repeat(BATCH, HRZ, 1)
+    GOAL = torch.tensor([-3, uniform(-3, 3)]).repeat(BATCH, HRZ, 1)
 else:
     str_list = options.goal.split(",")
     goal_list = []
@@ -389,7 +391,7 @@ if options.cmpstk:
     ie = IECore()
     net = IECore.read_network(ie, 'Herdr.xml', 'Herdr.bin')
     output_blob = next(iter(net.outputs))
-    exec_net = ie.load_network(network=net, device_name='MYRIAD', num_requests=1)
+    exec_net = ie.load_network(network=net, device_name='MYRIAD', num_requests=2)
     inference_request = exec_net.requests[0]
 
 controller = Hircus(train=options.training, accel=options.cmpstk, ultra=options.ultrasound)
@@ -405,6 +407,8 @@ while not controller.step(WEBOTS_STEP_TIME) == -1:
     writer.grab_frame()
     # controller.customdata.setSFString(str(torch.sum(controller.event).item()))
 # file.close()
+if options.cmpstk:
+    del ie, net, exec_net
 writer.finish()
 
 

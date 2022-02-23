@@ -17,64 +17,36 @@
 		<IR name="action_pre.0.bias" output_port_id="0" />
 	</map>
 	<map>
-		<framework name="Sub_38/neg_/EltwiseUnsqueeze" output_port_id="65" />
-		<IR name="Sub_38/neg_/EltwiseUnsqueeze" output_port_id="2" />
+		<framework name="107" output_port_id="107" />
+		<IR name="107" output_port_id="0" />
 	</map>
 	<map>
-		<framework name="Sub_38" output_port_id="69" />
-		<IR name="Sub_38" output_port_id="2" />
+		<framework name="MatMul_32" output_port_id="64" />
+		<IR name="MatMul_32" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="ReduceMax_32" output_port_id="63" />
-		<IR name="ReduceMax_32" output_port_id="2" />
+		<framework name="Add_33" output_port_id="65" />
+		<IR name="Add_33" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="Sub_35/sub" output_port_id="66" />
-		<IR name="Sub_35/sub" output_port_id="2" />
+		<framework name="Relu_34" output_port_id="66" />
+		<IR name="Relu_34" output_port_id="1" />
 	</map>
 	<map>
-		<framework name="Constant_36" output_port_id="67" />
-		<IR name="Constant_36" output_port_id="0" />
+		<framework name="108" output_port_id="108" />
+		<IR name="108" output_port_id="0" />
 	</map>
 	<map>
-		<framework name="Div_39/reciprocal_/EltwiseUnsqueeze" output_port_id="68" />
-		<IR name="Div_39/reciprocal_/EltwiseUnsqueeze" output_port_id="2" />
+		<framework name="MatMul_35" output_port_id="68" />
+		<IR name="MatMul_35" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="Div_39" output_port_id="70" />
-		<IR name="Div_39" output_port_id="2" />
+		<framework name="Add_36" output_port_id="69" />
+		<IR name="Add_36" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="115" output_port_id="115" />
-		<IR name="115" output_port_id="0" />
-	</map>
-	<map>
-		<framework name="MatMul_40" output_port_id="72" />
-		<IR name="MatMul_40" output_port_id="2" />
-	</map>
-	<map>
-		<framework name="Add_41" output_port_id="73" />
-		<IR name="Add_41" output_port_id="2" />
-	</map>
-	<map>
-		<framework name="Relu_42" output_port_id="74" />
-		<IR name="Relu_42" output_port_id="1" />
-	</map>
-	<map>
-		<framework name="116" output_port_id="116" />
-		<IR name="116" output_port_id="0" />
-	</map>
-	<map>
-		<framework name="MatMul_43" output_port_id="76" />
-		<IR name="MatMul_43" output_port_id="2" />
-	</map>
-	<map>
-		<framework name="Add_44" output_port_id="77" />
-		<IR name="Add_44" output_port_id="2" />
-	</map>
-	<map>
-		<framework name="Transpose_45" output_port_id="78" />
-		<IR name="Transpose_45" output_port_id="2" />
+		<framework name="Transpose_37" output_port_id="70" />
+		<IR name="Transpose_37" output_port_id="2" />
 	</map>
 	<map>
 		<framework name="Sub_6/neg_/EltwiseUnsqueeze" output_port_id="30" />
@@ -229,8 +201,8 @@
 		<IR name="Constant_24" output_port_id="0" />
 	</map>
 	<map>
-		<framework name="LSTM_46/HiddenStateResize" output_port_id="57" />
-		<IR name="LSTM_46/HiddenStateResize" output_port_id="2" />
+		<framework name="LSTM_38/HiddenStateResize" output_port_id="57" />
+		<IR name="LSTM_38/HiddenStateResize" output_port_id="2" />
 	</map>
 	<map>
 		<framework name="ConstantOfShape_29/Broadcast" output_port_id="60" />
@@ -245,8 +217,8 @@
 		<IR name="Constant_28" output_port_id="0" />
 	</map>
 	<map>
-		<framework name="LSTM_46/CellStateResize" output_port_id="62" />
-		<IR name="LSTM_46/CellStateResize" output_port_id="2" />
+		<framework name="LSTM_38/CellStateResize" output_port_id="62" />
+		<IR name="LSTM_38/CellStateResize" output_port_id="2" />
 	</map>
 	<map>
 		<framework name="model_out.0.2.bias" output_port_id="model_out.0.2.bias" />
@@ -257,47 +229,47 @@
 		<IR name="model_out.0.0.bias" output_port_id="0" />
 	</map>
 	<map>
-		<framework name="LSTM_46/UnsqueezeNumDirections/0" output_port_id="100" />
-		<IR name="LSTM_46/UnsqueezeNumDirections/0" output_port_id="2" />
+		<framework name="LSTM_38/UnsqueezeNumDirections/0" output_port_id="92" />
+		<IR name="LSTM_38/UnsqueezeNumDirections/0" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="Squeeze_47" output_port_id="103" />
-		<IR name="Squeeze_47" output_port_id="2" />
+		<framework name="Squeeze_39" output_port_id="95" />
+		<IR name="Squeeze_39" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="Transpose_48" output_port_id="104" />
-		<IR name="Transpose_48" output_port_id="2" />
+		<framework name="Transpose_40" output_port_id="96" />
+		<IR name="Transpose_40" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="137" output_port_id="137" />
-		<IR name="137" output_port_id="0" />
+		<framework name="129" output_port_id="129" />
+		<IR name="129" output_port_id="0" />
 	</map>
 	<map>
-		<framework name="MatMul_49" output_port_id="106" />
-		<IR name="MatMul_49" output_port_id="2" />
+		<framework name="MatMul_41" output_port_id="98" />
+		<IR name="MatMul_41" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="Add_50" output_port_id="107" />
-		<IR name="Add_50" output_port_id="2" />
+		<framework name="Add_42" output_port_id="99" />
+		<IR name="Add_42" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="Relu_51" output_port_id="108" />
-		<IR name="Relu_51" output_port_id="1" />
+		<framework name="Relu_43" output_port_id="100" />
+		<IR name="Relu_43" output_port_id="1" />
 	</map>
 	<map>
-		<framework name="138" output_port_id="138" />
-		<IR name="138" output_port_id="0" />
+		<framework name="130" output_port_id="130" />
+		<IR name="130" output_port_id="0" />
 	</map>
 	<map>
-		<framework name="MatMul_52" output_port_id="110" />
-		<IR name="MatMul_52" output_port_id="2" />
+		<framework name="MatMul_44" output_port_id="102" />
+		<IR name="MatMul_44" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="Add_53" output_port_id="111" />
-		<IR name="Add_53" output_port_id="2" />
+		<framework name="Add_45" output_port_id="103" />
+		<IR name="Add_45" output_port_id="2" />
 	</map>
 	<map>
-		<framework name="112" output_port_id="112" />
-		<IR name="112" output_port_id="1" />
+		<framework name="104" output_port_id="104" />
+		<IR name="104" output_port_id="1" />
 	</map>
 </mapping>

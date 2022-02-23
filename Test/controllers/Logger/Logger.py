@@ -58,7 +58,7 @@ class Logger (Supervisor):
         frame = torch.tensor(frame[:, :, 0:3]).float()
         frame = frame.permute(2, 0, 1)
         frame = torch.index_select(frame, 0, torch.tensor([2, 1, 0]))
-        save_image(frame / 255, 'topview.jpg')
+        save_image(frame / 255, 'Topview.jpg')
 
 
 def pathlength(x, y):
@@ -90,8 +90,8 @@ GOAL = controller.cc.getPosition()
 unsafe_score = []
 while not controller.step(controller.timestep) == -1:
     GOAL = controller.cc.getPosition()
-    Hircuspos = np.asarray(controller.hircus.getPosition()) - np.asarray(GOAL)
-    Hircus_traj.append(Hircuspos)
+    Hircuspos = controller.hircus.getPosition()
+    Hircus_traj.append(np.asarray(Hircuspos-np.asarray(GOAL)))
     if not controller.getTime() == 0.1:
         ped_trajs.append([p.getPosition() - np.asarray(GOAL) for p in controller.peds])
     out_log = controller.log(Hircuspos, controller.peds)
@@ -101,7 +101,7 @@ while not controller.step(controller.timestep) == -1:
     controller.grab_frame()
     traj_length = pathlength(np.asarray(Hircus_traj)[:, 0], np.asarray(Hircus_traj)[:, 2])
     unsafe_score.append(is_float(controller.customdata.getSFString()))
-    plot_trajectory(np.asarray(Hircus_traj), np.asarray(min_dist), np.asarray(ped_trajs), np.aray([0, 0, 0]),
+    plot_trajectory(np.asarray(Hircus_traj), np.asarray(min_dist), np.asarray(ped_trajs), np.array([0, 0, 0]),
                     "Clearance", traj_length, collision=in_collision.count(1))
     writer_dist.grab_frame()
     plot_trajectory(np.asarray(Hircus_traj), np.asarray(unsafe_score), np.asarray(ped_trajs), np.array([0, 0, 0]),

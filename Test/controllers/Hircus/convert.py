@@ -8,14 +8,14 @@ from Badgrnet import HERDR
 
 if __name__ == '__main__':
     model = torch.load(
-        "Herdr_Best_Feb22.pth",
+        "Herdr_Feb22_640_2Hr.pth",
         map_location=torch.device('cpu'))
     model.model_out = nn.Sequential(
         model.model_out,
         nn.Sigmoid()
     )
     model.eval()
-    frame = torch.zeros((1, 3, 720, 1280))
+    frame = torch.zeros((1, 3, 480, 640))
     actions = torch.zeros((1, 10, 2))
 
     torch.onnx.export(model, (frame, actions), 'Herdr.onnx', input_names=['img', 'actions'], verbose=True)
