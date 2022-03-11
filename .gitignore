@@ -12,3 +12,4 @@ Test/**/*.onnx
 *Herdr.bin
 *.h5
 src/h5test.py
+results/*

@@ -400,15 +400,15 @@ cmap = mpl.cm.YlOrRd
 norm = mpl.colors.Normalize(vmin=0, vmax=1)
 cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
 # file = h5py.File(f'./hdf5s/{datetime.now()}.h5', 'w')
-writer = animation.FFMpegWriter(fps=2)
-writer.setup(fig, 'actions_cam_view.mp4')
+# writer = animation.FFMpegWriter(fps=2)
+# writer.setup(fig, 'actions_cam_view.mp4')
 while not controller.step(WEBOTS_STEP_TIME) == -1:
     controller.Herdr()
-    writer.grab_frame()
+    # writer.grab_frame()
     # controller.customdata.setSFString(str(torch.sum(controller.event).item()))
 # file.close()
 if options.cmpstk:
     del ie, net, exec_net
-writer.finish()
+# writer.finish()
 
 

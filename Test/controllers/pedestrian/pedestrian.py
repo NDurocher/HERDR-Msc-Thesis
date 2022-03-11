@@ -64,6 +64,17 @@ class Pedestrian (Supervisor):
         self.ped = self.getSelf()
         print(f"{self.ped.getDef()} is ID: {self.ped.getId()}")
 
+    def computewaypointdist(self):
+        # compute waypoints distance
+        self.waypoints_distance = []
+        for i in range(0, self.number_of_waypoints):
+            x = self.waypoints[i][0] - self.waypoints[(i + 1) % self.number_of_waypoints][0]
+            z = self.waypoints[i][1] - self.waypoints[(i + 1) % self.number_of_waypoints][1]
+            if i == 0:
+                self.waypoints_distance.append(math.sqrt(x * x + z * z))
+            else:
+                self.waypoints_distance.append(self.waypoints_distance[i - 1] + math.sqrt(x * x + z * z))
+
     def run(self):
         """Set the Pedestrian pose and position."""
         opt_parser = optparse.OptionParser()
@@ -98,8 +109,8 @@ class Pedestrian (Supervisor):
             position = self.root_translation_field.getSFVec3f()
             rotation = self.root_rotation_field.getSFRotation()
             rotation = np.array(rotation[0:3]) * rotation[3]
-            position[2] = uniform(-1.75, 1.75)
-            position[0] = uniform(-8, 6)
+            position[2] = 0  # uniform(-1.75, 1.75)
+            position[0] = 0  # uniform(-8, 6)
             x = [str(position[0]), str(position[0] + options.dist * np.sin(rotation[1]))]  # world x-axis
             y = [str(position[2]), str(position[2] + options.dist * np.cos(rotation[1]))]  # world z-axis
         else:
@@ -120,15 +131,8 @@ class Pedestrian (Supervisor):
         for i in range(0, self.BODY_PARTS_NUMBER):
             self.joints_position_field.append(self.root_node_ref.getField(self.joint_names[i]))
 
-        # compute waypoints distance
-        self.waypoints_distance = []
-        for i in range(0, self.number_of_waypoints):
-            x = self.waypoints[i][0] - self.waypoints[(i + 1) % self.number_of_waypoints][0]
-            z = self.waypoints[i][1] - self.waypoints[(i + 1) % self.number_of_waypoints][1]
-            if i == 0:
-                self.waypoints_distance.append(math.sqrt(x * x + z * z))
-            else:
-                self.waypoints_distance.append(self.waypoints_distance[i - 1] + math.sqrt(x * x + z * z))
+        self.computewaypointdist()
+
         while not self.step(self.time_step) == -1:
             time = self.getTime()
 
