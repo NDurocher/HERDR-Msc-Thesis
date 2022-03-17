@@ -1,5 +1,5 @@
 .idea
-*.zip
+Test/**/*.zip
 Test/**/*.png
 Test/**/*.jpg
 src/**/*.jpg
