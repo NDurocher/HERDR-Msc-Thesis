@@ -59,8 +59,8 @@ class HERDR(nn.Module):
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
         '''Can replace repeat(1,1,1), with repeat(1,action.shape[0]) during runtime for significant speed improvment'''
-        Hx = Hx.repeat(1, action.shape[0], 1)
-        Cx = Cx.repeat(1, action.shape[0], 1)
+        Hx = Hx.repeat(1, 1, 1)
+        Cx = Cx.repeat(1, 1, 1)
         action = self.action_pre(action)
         # put "time" first
         action = action.transpose(1, 0)

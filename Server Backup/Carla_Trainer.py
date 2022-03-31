@@ -1,4 +1,3 @@
-from datetime import datetime
 import numpy as np
 import torch
 import os
@@ -12,9 +11,7 @@ from tqdm.notebook import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import SubsetRandomSampler, RandomSampler 
 import h5py
-from zmq import device
 from Badgrnet import HERDR
-# from HDF5DataClass_webots import HDF5Dataset
 
 class carla_hdf5dataclass(data.Dataset):
     '''Input params:
@@ -25,6 +22,8 @@ class carla_hdf5dataclass(data.Dataset):
         transform: PyTorch transform to apply to every data instance (default=None).'''
     
     def __init__(self, file_path, horizon, load_all_files=False, recursive=False, transform=None):
+        self.transform = transform
+        torch.manual_seed(12)
         if torch.cuda.is_available():
             self.device = torch.device('cuda:0')
             print("Use GPU")
@@ -45,6 +44,8 @@ class carla_hdf5dataclass(data.Dataset):
             self.data = np.concatenate([self.loadfromfile(str(h5dataset_fp.resolve())) for h5dataset_fp in files])
         else:
             self.data = self.loadfromfile(file_path)
+ 
+        '''find all indices where not done'''
         self.valid_start_indices = np.where(self.data[:,-1] == 'False')[0]
 
     def loadfromfile(self, file_path):
@@ -57,8 +58,8 @@ class carla_hdf5dataclass(data.Dataset):
                 group_arr = np.concatenate((group_arr, done_arr[:,None]), axis=1)
                 file_arr = np.concatenate((file_arr, group_arr), axis=0)
 
+        ''' Delete empty row at start of arr'''
         file_arr = file_arr[1:]
-        self.valid_start_indices = np.where(file_arr[:,-1] == 'False')[0]
         
         ''' file array shape: [velocity, steer angle, gnd, image name, done]'''
         return file_arr
@@ -97,6 +98,10 @@ class carla_hdf5dataclass(data.Dataset):
     def __getitem__(self, index):
         img, act, gnd = self.get_data(index)
 
+        if torch.rand(1).item() >= 0.5:
+            img = hflip(img)
+            act[:,1] = -act[:,1]
+
         return img, act, gnd
 
     def one_epoch(self, model, dataloader, start_step=0, writer=None, opt=None):
@@ -106,7 +111,7 @@ class carla_hdf5dataclass(data.Dataset):
         losses, correct, total = [], [], 0
         pos_correct, pos_total = [], 0
         incorrect = 0
-        criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=torch.tensor(20.0).to(self.device))
+        criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=torch.tensor(12.0).to(self.device))
         sig = nn.Sigmoid()
         step = start_step
         for x, y, z in dataloader:
@@ -120,25 +125,23 @@ class carla_hdf5dataclass(data.Dataset):
             total += samples
             pos_samples = torch.count_nonzero(z)
             pos_total += pos_samples
-            pos_correct.append(torch.count_nonzero(torch.logical_and( (abs(z-sig(logits)) < 0.50), z)).item())
-            correct.append(torch.count_nonzero(abs(z-sig(logits)) < 0.50).item())
-            incorrect = torch.count_nonzero(abs(sig(logits)-z) >= 0.50).item()
+            pos_correct.append(torch.count_nonzero(torch.logical_and( (abs(z-sig(logits)) < 0.30), z)).item())
+            correct.append(torch.count_nonzero(abs(z-sig(logits)) < 0.30).item())
+            incorrect = torch.count_nonzero(abs(sig(logits)-z) >= 0.30).item()
             
             if train:
                 loss.backward()
                 opt.step()
                 opt.zero_grad()
 
-
             losses.append(loss.item())
             if writer is not None:
-                writer.add_scalar("Loss/valid", losses[-1], step) if opt is None else writer.add_scalar("Loss/train", losses[-1], step)
-                writer.add_scalar("Accuracy/valid", correct[-1]/samples, step) if opt is None else writer.add_scalar("Accuracy/train", correct[-1]/samples, step)
-                writer.add_scalar("Incorrect/valid", incorrect/samples, step) if opt is None else writer.add_scalar("Incorrect/train", incorrect/samples, step)
+                writer.add_scalar("Train/Loss", losses[-1], step)  # writer.add_scalar("Loss/valid", losses[-1], step) if opt is None else
+                writer.add_scalar("Train/Accuracy", correct[-1]/samples, step)  # writer.add_scalar("Accuracy/valid", correct[-1]/samples, step) if opt is None else
+                writer.add_scalar("Train/Incorrect", incorrect/samples, step)  # writer.add_scalar("Incorrect/valid", incorrect/samples, step) if opt is None else 
                 if pos_samples > 0:
-                    writer.add_scalar("Pos_Accuracy/valid", pos_correct[-1]/pos_samples, step) if opt is None else writer.add_scalar("Pos_Accuracy/train", pos_correct[-1]/pos_samples, step)
+                    writer.add_scalar("Train/Pos_Accuracy", pos_correct[-1]/pos_samples, step)  # writer.add_scalar("Pos_Accuracy/valid", pos_correct[-1]/pos_samples, step) if opt is None else  
             del loss
-        
             step += 1
         
         return np.mean(losses), sum(pos_correct)/pos_total, sum(correct)/total, step
@@ -154,7 +157,7 @@ if __name__ == "__main__":
         opt = None
     else:
         model = HERDR(Horizon=HRZ)
-        opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-1)
+        opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
     test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
     testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32)
     

@@ -13,6 +13,8 @@ import matplotlib as mpl
 from matplotlib.collections import LineCollection
 from Badgrnet import HERDR
 from actionplanner import HERDRPlan
+from Carla_Trainer import carla_hdf5dataclass
+from torch.utils.data.sampler import SubsetRandomSampler
 import time
 
 
@@ -100,16 +102,22 @@ def plot_action_cam_view(position, frame, event_probs, state):
     plt.title('Probabilities of Unsafe Position')
 
 
-def count_data_ratio(df):
-    print(len(df)*20/sum([torch.count_nonzero(row['Ground_Truth']) for index, row in df.iterrows()]))
-    pass
+def count_data_ratio(loader):
+    total = len(loader)*10
+    positive = sum([torch.count_nonzero(gnd) for im, act, gnd in loader])
+    ratio = total/positive
+    print(f'Total Samples: {total}, # Positive: {positive} Ratio of total:positive {ratio:.4f}')
+
+    
 
 
 if __name__ == "__main__":
-    dir_name = Path(Path.cwd()).parent
-    dir_name = str(dir_name) + '/Test/controllers/Hircus/'
-    # df = pd.read_pickle(dir_name + "State_rewards.pkl")
-    df = pd.read_pickle(dir_name + "Herdr_data_train.pkl")
-    count_data_ratio(df)
+    dir_name = Path(Path.cwd())
+    dir_name = str(dir_name) + '/carla_hdf5s/'
+    dataset = carla_hdf5dataclass(dir_name, 10, load_all_files=True)
+    print(len(dataset))
+    test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
+    testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=1)
+    count_data_ratio(testloader)
     # for index, row in df.iterrows():
     #     plot_actions(row['State'], row['Event_Prob'], "50", row['Target_Pos'], dir_name)
