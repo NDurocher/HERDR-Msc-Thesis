@@ -12,6 +12,8 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import SubsetRandomSampler, RandomSampler 
 import h5py
 from Badgrnet import HERDR
+from datetime import datetime
+# import deepspeed
 
 class carla_hdf5dataclass(data.Dataset):
     '''Input params:
@@ -21,9 +23,10 @@ class carla_hdf5dataclass(data.Dataset):
             trianing after collection or want to continue to grow dataset
         transform: PyTorch transform to apply to every data instance (default=None).'''
     
-    def __init__(self, file_path, horizon, load_all_files=False, recursive=False, transform=None):
+    def __init__(self, h5file_path, horizon, imagefile_path, load_all_files=False, recursive=False, transform=None):
         self.transform = transform
-        torch.manual_seed(12)
+        self.image_fp = imagefile_path
+        # torch.manual_seed(12)
         if torch.cuda.is_available():
             self.device = torch.device('cuda:0')
             print("Use GPU")
@@ -33,7 +36,7 @@ class carla_hdf5dataclass(data.Dataset):
         self.horizon = horizon
         if load_all_files:
             ''' Search for all h5 files else just load one'''
-            p = Path(file_path)
+            p = Path(h5file_path)
             assert (p.is_dir())
             if recursive:
                 files = sorted(p.glob('**/*.h5'))
@@ -43,7 +46,7 @@ class carla_hdf5dataclass(data.Dataset):
                 raise RuntimeError('No hdf5 datasets found')    
             self.data = np.concatenate([self.loadfromfile(str(h5dataset_fp.resolve())) for h5dataset_fp in files])
         else:
-            self.data = self.loadfromfile(file_path)
+            self.data = self.loadfromfile(h5file_path)
  
         '''find all indices where not done'''
         self.valid_start_indices = np.where(self.data[:,-1] == 'False')[0]
@@ -68,7 +71,8 @@ class carla_hdf5dataclass(data.Dataset):
         end_i = i+self.horizon
         ''' get image'''
         img_name = self.data[i, 3]
-        img = read_image(f'/home/nathan/HERDR/carla_images/{img_name}.jpg').float()
+        img = read_image(f'{self.image_fp}/{img_name}.jpg').float()
+        # img = torch.zeros((2,2))
         
         ls = np.concatenate((self.data[i:end_i, 0:3], self.data[i:end_i, 4, None]), axis=1).copy()
         done_index = np.where(ls[:,3] == 'True')[0]
@@ -111,23 +115,23 @@ class carla_hdf5dataclass(data.Dataset):
         losses, correct, total = [], [], 0
         pos_correct, pos_total = [], 0
         incorrect = 0
-        criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=torch.tensor(12.0).to(self.device))
+        criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=torch.tensor(7.9657).to(self.device))
         sig = nn.Sigmoid()
         step = start_step
-        for x, y, z in dataloader:
+        for img, act, gnd in dataloader:
             model.zero_grad()
-            x, y, z = x.to(self.device), y.to(self.device), z.to(self.device) 
+            img, act, gnd = img.to(self.device), act.to(self.device), gnd.to(self.device) 
             with torch.set_grad_enabled(train):
-                logits = model(x,y)
-            loss = criterion(logits, z)
+                logits = model(img,act)
+            loss = criterion(logits, gnd)
             
-            samples = z.shape[0]*z.shape[1]
+            samples = gnd.shape[0]*gnd.shape[1]
             total += samples
-            pos_samples = torch.count_nonzero(z)
+            pos_samples = torch.count_nonzero(gnd)
             pos_total += pos_samples
-            pos_correct.append(torch.count_nonzero(torch.logical_and( (abs(z-sig(logits)) < 0.30), z)).item())
-            correct.append(torch.count_nonzero(abs(z-sig(logits)) < 0.30).item())
-            incorrect = torch.count_nonzero(abs(sig(logits)-z) >= 0.30).item()
+            pos_correct.append(torch.count_nonzero(torch.logical_and( (abs(gnd-sig(logits)) < 0.30), gnd)).item())
+            correct.append(torch.count_nonzero(abs(gnd-sig(logits)) < 0.30).item())
+            incorrect = torch.count_nonzero(abs(sig(logits)-gnd) >= 0.30).item()
             
             if train:
                 loss.backward()
@@ -149,25 +153,28 @@ class carla_hdf5dataclass(data.Dataset):
 
 
 if __name__ == "__main__":
-    dataset = carla_hdf5dataclass('/home/nathan/HERDR/carla_hdf5s/', 10, load_all_files=True)
+    dataset = carla_hdf5dataclass('/home/nathan/HERDR/carla_hdf5s/', 10, '/home/nathan/HERDR/carla_images/', load_all_files=True)
     HRZ = 10
-    pretrained = False
+    pretrained = True
     if pretrained:
-        model = torch.load('/home/nathan/HERDR/models/Herdr_cross22-02-2022--17:42:02.pth')
-        opt = None
+        model = torch.load('/home/nathan/HERDR/models/carla03-04-2022--10:16.pth')
+        opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
+        log_time = '03-04-2022--10:16'
+        writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
     else:
         model = HERDR(Horizon=HRZ)
         opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
+        log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
+        writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
     test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
     testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32)
     
-    # torch.set_default_dtype(torch.float32)
-    # torch.set_printoptions(precision=2)
-
-    # time = datetime.now().strftime("%d-%m-%Y--%H:%M:%S")
-    # writer = SummaryWriter(log_dir=f'{dir_path}/logs/'+time)
-    end_step = 0
-    for epoch in range(0,5):
-        loss, pos_accuracy, accuracy, end_step = dataset.one_epoch(model,testloader, start_step=end_step, opt=opt)
-        print(f"Epoch Loss: {loss}, Epoch +Accuracy: {pos_accuracy}, Epoch Accuracy: {accuracy}, # steps: {end_step}")
+    max_loss = 10000
+    end_step = 34834
+    for epoch in range(0, 20):
+        loss, pos_accuracy, accuracy, end_step = dataset.one_epoch(model,testloader, start_step=end_step, writer=writer, opt=opt)
+        print(f"Epoch{epoch} - Loss: {loss:.4f}, +Accuracy: {pos_accuracy:.4f}, TAccuracy: {accuracy:.4f}, # steps: {end_step}")
+        if loss < max_loss:
+            max_loss = loss
+            torch.save(model, f'./models/carla{log_time}.pth')
     print('---DONE---')

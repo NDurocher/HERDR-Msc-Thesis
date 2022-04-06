@@ -96,26 +96,36 @@ class HERDRenv():
             trans.location.z += 1
 
             walker_actor = self.world.try_spawn_actor(walker_bp, trans)
-            # self.world.wait_for_tick()
+            
             self.world.tick()
             if walker_actor is None:
                 continue
             self.actor_list.append(walker_actor)
 
             controller_walker = self.world.try_spawn_actor(controller_bp, carla.Transform(), walker_actor)
-            # self.world.wait_for_tick()
+            
             self.world.tick()
 
             controller_walker.start()
             controller_walker.go_to_location(self.world.get_random_location_from_navigation())
 
             self.controller_list.append(controller_walker)
-        # self.ped_actor_stop_idx = len(self.controller_list)-1
+        
         del self.blueprint_library
         print('Pedestrians Added.')
 
     def reset(self):
-        self.H5File = h5py.File(f'/home/nathan/HERDR/carla_hdf5s/{self.H5File_name}.h5', 'a')
+        self.client = carla.Client('localhost', 2000)
+        self.client.set_timeout(8.0)
+        self.world = self.client.get_world()
+        # self.wmap = self.world.get_map()
+        new_settings = self.world.get_settings()
+        new_settings.synchronous_mode = True
+        new_settings.max_substeps = 16
+        new_settings.max_substep_delta_time = 0.0125
+        new_settings.fixed_delta_seconds = 1/self.control_freq
+        self.world.apply_settings(new_settings) 
+        # self.H5File = h5py.File(f'/home/nathan/HERDR/carla_hdf5s/{self.H5File_name}.h5', 'a')
 
     def pathlength(self, pos_list):
         np_pos_hist = np.asarray(pos_list)
@@ -128,8 +138,9 @@ class HERDRenv():
     def calc_SPL(self):
         sum_var = 0
         for success, length, p2pdist in self.SPL_hist:
-            sum_var += success*(p2pdist/np.max([p2pdist,length,1e-9]))
+            sum_var += success * (p2pdist/np.max([p2pdist,length,1e-9]))
         spl = 1/len(self.SPL_hist)*sum_var
+        print(f'\n&& SPL: {spl:.4f} &&')
         return spl
        
     def set_recordings(self):
@@ -138,14 +149,14 @@ class HERDRenv():
         cmap = mpl.cm.YlOrRd
         norm = mpl.colors.Normalize(vmin=0, vmax=1)
         cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
-        fps = 5
+        fps = 2
         self.writer = animation.FFMpegWriter(fps=fps)
         self.writer.setup(fig, './actions_cam_view.mp4')
         self.top_writer = animation.FFMpegWriter(fps=fps)
         self.top_writer.setup(fig, './Top_view.mp4')
 
     def get_recordings(self, agent):
-        self.plot_hist_front.put([location2tensor(agent.vehicle.get_location()), agent.frame.permute(1,2,0), agent.event, agent.state])
+        self.plot_hist_front.put([location2tensor(agent.vehicle.get_location()), agent.frame.permute(1,2,0), agent.event, agent.state, agent.planner.mean.T.numpy()])
         td_cam_pos = agent.vehicle.get_location()
         topdown_camera_transform = carla.Transform(carla.Location(x=td_cam_pos.x, y=td_cam_pos.y, z=15), carla.Rotation(pitch=-90))
         agent.tdcam.set_transform(topdown_camera_transform)
@@ -190,17 +201,19 @@ class HERDRenv():
 def main():
     # while True:
     faulthandler.enable()
+    torch.set_default_dtype(torch.float32)
+    max_loss = 10000
     try:
-        log_time = datetime.now().strftime("%d-%m-%Y--%H:%M:%S")
-        # log_time = '31-03-2022--12:25:13'
+        log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
+        # log_time = '06-04-2022--11:06'
         env = HERDRenv()
         # env.reworld()
-        env.reset()
+        # env.reset()
         env.pop_map_pedestrians(num_peds=200)
         writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
-        Herdr = Herdragent(training=True, model_name=None)  # model_name=f'carla{log_time}.pth'
-        if os.path.isfile(f'./training_counts_{log_time}.pkl'):
-            with open(f'./training_counts_{log_time}.pkl','rb') as f:
+        Herdr = Herdragent(training=False, model_name=f'carla{log_time}.pth')  # model_name=None
+        if os.path.isfile(f'/home/nathan/HERDR/pickles/training_counts_{log_time}.pkl'):
+            with open(f'/home/nathan/HERDR/pickles/training_counts_{log_time}.pkl','rb') as f:
                 total_sim_time, env.run, end_step, env.SPL_hist = pickle.load(f)
         else:
             end_step = 0
@@ -256,45 +269,67 @@ def main():
                     # job.join()
                     # job.close()
                     # start_step_time = time.time()
-                    env.new_run(Herdr.action_hist, Herdr.im_hist, Herdr.GND_hist)
-                    env.H5File.close()
+                    # env.new_run(Herdr.action_hist, Herdr.im_hist, Herdr.GND_hist)
+                    # env.H5File.close()
+                    ''' Calculate and Save SPL metric'''
                     pl = env.pathlength(Herdr.pos_hist)
                     env.SPL_hist.append([Herdr.success, pl, Herdr.p2pdist])
                     spl = env.calc_SPL()
+                    ''' Unused ploting tools '''
                     # env.top_writer.finish()
                     # env.writer.finish()
                     # plot_trajectory(np.asarray(env.pos_hist), torch.ones((len(env.pos_hist))), env.GOAL[0,0,:], collision=len(env.collision_hist))
                     # plt.savefig('./trajectory.png')
                     # plt.close('all')
                     ''' Empty memory and kill actors and sensors and save metrics'''
-                    Herdr.cleanup()
                     writer.add_scalar("Validation/Run_time", sim_time, env.run)
                     writer.add_scalar("Validation/In_Pedestrain_Space", env.ped_space_count/sim_time, env.run)
                     writer.add_scalar("Validation/Distance_Traveled", pl, env.run)
                     writer.add_scalar("Validation/SPL", spl, env.run)
-                    if env.run % 50 == 0:
-                        writer.add_image("Validation/Context_Image", Herdr.frame/255, 0)
+                    ''' Plot actions and optimal path at collision every 20th run '''
+                    if env.run % 20 == 0:
+                        fig = plt.figure()
+                        plot_args = [location2tensor(Herdr.vehicle.get_location()), Herdr.frame.permute(1,2,0), Herdr.event, Herdr.state, Herdr.planner.mean.T.numpy()]
+                        plot_action_cam_view(*plot_args)
+                        fig.canvas.draw()
+                        # Now we can save it to a numpy array.
+                        data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+                        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+                        data = data.transpose(2,0,1)/255
+                        try:
+                            writer.add_image("Validation/Context_Image", data, env.run)
+                        finally:
+                            del data, plot_args
+                            plt.close(fig)
+                    ''' Clean up from run '''
+                    writer.flush()
+                    Herdr.cleanup()
                     print(f'Real time: {time.time()-start_time:.4f}\n')
 
             finally:
-                ''' Train on collected data from current run '''
-                run_data = carla_hdf5dataclass(f"/home/nathan/HERDR/carla_hdf5s/", Herdr.horizon, load_all_files=True)
+                ''' Train on collected data'''
+                run_data = carla_hdf5dataclass(f"/home/nathan/HERDR/carla_hdf5s/", Herdr.horizon, imagefile_path=f"/home/nathan/HERDR/carla_images", load_all_files=True)
                 test_sampler = SubsetRandomSampler(run_data.valid_start_indices)
                 testloader = torch.utils.data.DataLoader(run_data, sampler=test_sampler, batch_size=32)
-                opt = torch.optim.Adam(Herdr.model.parameters(), lr=1e-4, weight_decay=1e-1)
-                torch.set_default_dtype(torch.float32)
+                opt = torch.optim.Adam(Herdr.model.parameters(), lr=1e-3, weight_decay=1e-1)
                 loss, pos_accuracy, accuracy, end_step = run_data.one_epoch(Herdr.model,testloader, start_step=end_step, writer=writer, opt=opt)
                 print(f"Epoch Loss: {loss:.2f}, Epoch +Accuracy: {pos_accuracy:.2f}, Epoch Accuracy: {accuracy:.2f}, # steps: {len(testloader)}")
-                torch.save(Herdr.model, f'./models/carla{log_time}.pth')
-                ''' Finish Run'''
+                if loss < max_loss:
+                    max_loss = loss
+                    torch.save(Herdr.model, f'./models/carla{log_time}.pth')
                 del run_data, test_sampler, testloader, opt
-                # print("\nInsert Training Here\n")
-                round += 1
-                with open(f'./training_counts_{log_time}.pkl','wb') as f:
+                with open(f'/home/nathan/HERDR/pickles/training_counts_{log_time}.pkl','wb') as f:
                     pickle.dump([total_sim_time, env.run, end_step, env.SPL_hist],f)
+                ''' Finish Run'''
+                round += 1
+                # env.cleanup()
+                # env.reworld()
+                # env.reset()
+                # env.pop_map_pedestrians(num_peds=200)
     finally:
         Herdr.cleanup()
         env.cleanup()
+        writer.close()
         print('Destroying Pedestrians')
         env.client.apply_batch([carla.command.DestroyActor(x.id) for x in env.actor_list])
         print('Destroying AI Controllers')
@@ -306,11 +341,11 @@ def main():
 
 def test():
     env = HERDRenv()
-    Herdr = Herdragent(training=False, model_name='carla31-03-2022--12:25:13.pth')
+    Herdr = Herdragent(training=False, model_name='carla05-04-2022--18:14.pth') # 'carla02-04-2022--17:42.pth'
     try:
-        env.reset()
         # env.reworld()
-        env.pop_map_pedestrians(num_peds=20)
+        # env.reset()
+        env.pop_map_pedestrians(num_peds=200)
         Herdr.reset()
         env.set_recordings()
         job = Process(target=env.background_save, args=(env.plot_hist_front,env.plot_hist_top,), daemon=True)
@@ -324,21 +359,22 @@ def test():
             if Herdr.safe == 1:
                 env.ped_space_count += 1
             Herdr.GND_hist.append(Herdr.safe)
-            if len(Herdr.collision_hist) > 0:
-                if Herdr.GND_hist[-1] == 0:
-                    Herdr.GND_hist[-1] = 1
-                break
             save_frame_count += 1
             if save_frame_count % 200 == 0:
                 print(f"PING - I'm Alive - at {Herdr.vehicle.get_transform().location}")
             env.pos_hist.append(location2tensor(Herdr.vehicle.get_location()).numpy())
             env.get_recordings(Herdr)
+            if len(Herdr.collision_hist) > 0:
+                if Herdr.GND_hist[-1] == 0:
+                    Herdr.GND_hist[-1] = 1
+                break
         Herdr.done = True
         env.plot_hist_front.put('done')
         job.join()
         job.close()
         pl = env.pathlength(Herdr.pos_hist)
         env.SPL_hist.append([Herdr.success, pl, Herdr.p2pdist])
+        spl = env.calc_SPL()
         env.top_writer.finish()
         env.writer.finish()
         plot_trajectory(np.asarray(env.pos_hist), torch.ones((len(env.pos_hist))), Herdr.GOAL[0,0,:], collision=len(Herdr.collision_hist))

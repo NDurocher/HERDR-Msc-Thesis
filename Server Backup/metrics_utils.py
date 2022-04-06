@@ -74,7 +74,7 @@ def plot_actions(position, line_values, location, GOAL, frame=None):
     plt.scatter(GOAL[1], GOAL[0], s=20, c='red', marker="o")
 
 
-def plot_action_cam_view(position, frame, event_probs, state):
+def plot_action_cam_view(position, frame, event_probs, state, planner_mean=None):
     plt.cla()
     ''' state = [batch,horizon,(x,y,z,phi)]
         Transform from global to local co-ords'''
@@ -99,6 +99,27 @@ def plot_action_cam_view(position, frame, event_probs, state):
     frame = torch.index_select(frame, 2, indices)    
     plt.imshow(frame.int().numpy(), extent=[-1.5, 1.5, 0, 2])
     plt.autoscale(False)
+    if type(planner_mean) != None:
+        ''' Display optimal path from planner mean '''
+        opt_state = np.zeros((10,3))
+        dt = 1/5
+        wb = 0.7
+        ''' opt_state := [X, Y, phi] '''
+        for i in range(0,len(planner_mean) - 1):
+            opt_state[i + 1, 0] = opt_state[i, 0] + dt * np.cos(
+                opt_state[i, 2]) * planner_mean[i, 0]
+            opt_state[i + 1, 1] = opt_state[i, 1] + dt * np.sin(
+                opt_state[i, 2]) * planner_mean[i, 0]
+            opt_state[i + 1, 2] = opt_state[i, 2] - dt * planner_mean[i, 1] * planner_mean[i, 0] / wb
+        opt_state[:, 1] = opt_state[:, 1]/abs(opt_state[:, 1]).max()*1.1
+        opt_state[:, 0] = opt_state[:, 0]/abs(opt_state[:, 0]).max()*0.7
+        points = np.expand_dims(np.array([opt_state[:, 1], opt_state[:, 0]]).T, 1)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        lc = LineCollection(segments, cmap=plt.get_cmap('YlGn'), norm=plt.Normalize(0, 1))
+        lc.set_array(np.ones((10)))
+        lc.set_linewidth(3)
+        plt.gca().add_collection(lc)
+
     plt.title('Probabilities of Unsafe Position')
 
 
@@ -114,7 +135,7 @@ def count_data_ratio(loader):
 if __name__ == "__main__":
     dir_name = Path(Path.cwd())
     dir_name = str(dir_name) + '/carla_hdf5s/'
-    dataset = carla_hdf5dataclass(dir_name, 10, load_all_files=True)
+    dataset = carla_hdf5dataclass(dir_name, 10, '/home/nathan/HERDR/carla_images/', load_all_files=True)
     print(len(dataset))
     test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
     testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=1)

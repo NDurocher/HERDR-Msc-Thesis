@@ -17,10 +17,10 @@ class HERDR(nn.Module):
         self.obs_pre = nn.Sequential(
             # nn.LayerNorm([3, 240, 320]),
             nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
-            nn.MaxPool2d(4, stride=2),
+            # nn.MaxPool2d(4, stride=2),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
-            nn.MaxPool2d(4, stride=2),
+            # nn.MaxPool2d(4, stride=2),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
             nn.ReLU(),
@@ -47,14 +47,15 @@ class HERDR(nn.Module):
         self.lstm = nn.LSTM(input_size=16, hidden_size=self.rnndim, num_layers=1, batch_first=False)
 
     def normalize(self, arr):
-        up, low = arr.max(), arr.min()
-        mu = arr.mean()
-        std = 0.5 * (up - low)
-        normed_arr = (arr - mu) / std
+        # up, low = arr.max(), arr.min()
+        # mu = arr.mean()
+        # std = 0.5 * (up - low)
+        # normed_arr = (arr - mu) / std
+        normed_arr = arr/255 - 0.5
         return normed_arr
 
     def forward(self, img, action):
-        obs = self.obs_pre(img)
+        obs = self.obs_pre(self.normalize(img))
         # Change obs to 2*rnndim encoding, this is then split into Hx and Cx
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
@@ -75,26 +76,25 @@ class HERDR(nn.Module):
 if __name__ == "__main__":
     from actionplanner import HERDRPlan
     def impreprosses(im):
-        im = cv2.resize(im, (320, 240))
+        im = cv2.resize(im, (640, 480))
         im = loader(im).float()
         im = im.unsqueeze(0)
         im = im.repeat(batches, 1, 1, 1)
         return im
 
     cuda.init()
-    batches = 50
+    batches = 2
     hor = 10
-    planner = HERDRPlan(Horizon=hor)
-    model = HERDR(Horizon=hor, RnnDim=64)
-    print(torch.cuda.current_device())
+    planner = HERDRPlan(Horizon=hor, steer_init=0.5)
+    # model = HERDR(Horizon=hor, RnnDim=64)
+    # print(torch.cuda.current_device())
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
         print("Use GPU")
     else:
         device = torch.device('cpu')
         print("Use CPU")
-    # model = torch.load("../Test/controllers/Hircus/Herdr_cross06-01-2022--18 50 17.pth",
-                    #    map_location=torch.device('cpu'))
+    model = torch.load("/home/nathan/HERDR/models/carla31-03-2022--12:25:13.pth")
     model.model_out = nn.Sequential(
         model.model_out,
         nn.Sigmoid()
@@ -115,10 +115,10 @@ if __name__ == "__main__":
         frame = cv2.imread("/home/nathan/HERDR/images/2022-02-10 15:22:40.133458.jpg")
         frame = impreprosses(frame)
         actions = planner.sample_new(batches=batches)
-        print(frame.shape, actions.shape)
+        # print(frame.shape, actions.shape)
         frame, actions = frame.to(device), actions.to(device)
         r = model(frame, actions)
-        print(r.flatten(start_dim=0, end_dim=1).shape)
+        print(r.flatten(start_dim=0, end_dim=1))
         # tout = torch.count_nonzero(abs(r[:, :, 0] - t1) < 0.11)
         # print(tout)
         # torch.onnx.export(model,(frame, actions),'Herdr.onnx')

@@ -21,6 +21,7 @@ import torch
 from torch import nn
 import time
 from datetime import datetime
+from pathlib import Path
 
 from Badgrnet import HERDR
 from actionplanner import HERDRPlan
@@ -49,9 +50,9 @@ class Herdragent():
     
     control_freq = 5 # Hz
     horizon = 2*control_freq
-    batches = 70
+    batches = 50
     init_vel = 1.5 # m/s
-    safety_gain = 1.1 # magic number 
+    goal_gain = 0.3 # magic number - set to 0 for no target location reward
     wheelbase = 0.7 # m
     vehicle = None
     CAM_SHOW = False # bool to show front rgb camera preview
@@ -59,7 +60,7 @@ class Herdragent():
     depth_frame = None # initalizer for front depth camera img
     topview = None # initalizer for top view rgb camera img
     done = False # flag for done
-    success = False
+    success = 0.
     # front_wheel = carla.VehicleWheelLocation.Front_Wheel
     score = None
     first_call = False
@@ -71,8 +72,8 @@ class Herdragent():
         self.world = self.client.get_world()
         self.blueprint_library = self.world.get_blueprint_library()
         self.omafiets = self.blueprint_library.filter('omafiets')[0]
-        self.planner = HERDRPlan(Horizon=self.horizon, vel_init=self.init_vel)
-
+        self.planner = HERDRPlan(Horizon=self.horizon, vel_init=self.init_vel, gamma=20)
+        self.training = training
         if torch.cuda.is_available():
             self.device = torch.device('cuda:0')
             print("Use GPU")
@@ -80,18 +81,17 @@ class Herdragent():
             self.device = torch.device('cpu')
             print("Use CPU")
 
-        if training:
-            if model_name == None:
-                self.model = HERDR(Horizon=self.horizon)
-            else:
-                self.model = torch.load(f'/home/nathan/HERDR/models/{model_name}')
+        p = Path(f'/home/nathan/HERDR/models/{model_name}')
+        if p.is_file():
+            self.model = torch.load(f'/home/nathan/HERDR/models/{model_name}')
+        else:
+            self.model = HERDR(Horizon=self.horizon)
+        if self.training:
             self.model.eval()
             self.model.to(self.device)
             self.sig = nn.Sigmoid()
             self.infer = self.calc_score_training
         else:
-            # self.model = torch.load('/home/nathan/HERDR/models/Herdr_cross22-02-2022--17:42:02.pth')
-            self.model = torch.load(f'/home/nathan/HERDR/models/{model_name}')
             self.model.model_out = nn.Sequential(
                         self.model.model_out,
                         nn.Sigmoid())
@@ -103,6 +103,7 @@ class Herdragent():
         trans = carla.Transform()
         trans.location = self.world.get_random_location_from_navigation()
         # trans.location = carla.Location(x=125., y=50., z=0.16)
+        # trans.location = carla.Location(x=115.203445, y=-37.268463, z=0.177637)
         ''' *** Try to remove .repeat() to save memory *** '''
         self.GOAL = torch.tensor([trans.location.x, trans.location.y]).repeat(self.batches, 1, 1)
         print(f'Current location is: {tf.location}')
@@ -134,14 +135,31 @@ class Herdragent():
             print("Drove onto Road")
             self.collision_hist.append(event.timestamp)
     
-    def reset(self):
-        self.pos_hist = []
-        self.done = False
+    def tilt_check(self, event):
+        roll, pitch, yaw = event.gyroscope.x, event.gyroscope.y, event.gyroscope.z
+        # print(roll, pitch, yaw) 
+        if not self.done:
+            max_tilt = 0.85
+            if abs(roll) >= max_tilt or abs(pitch) >= max_tilt:
+                print("Tilted")
+                self.collision_hist.append(event.timestamp)
 
+    def reset(self):
+        self.pos_hist.clear()
+        self.done = False
+        self.success = 0.
+
+        # self.world = self.client.get_world()
+        self.world.tick()
+        # faulthandler.enable()
+        start_time = time.time()
         while self.vehicle is None:
             transform = carla.Transform(self.world.get_random_location_from_navigation())
             # transform = carla.Transform(carla.Location(x=115.203445, y=-37.268463, z=0.177637))
+            # transform = carla.Transform(carla.Location(x=109.680542, y=117.461411, z=0.177637))
             self.vehicle = self.world.try_spawn_actor(self.omafiets, transform)
+            if (time.time() - start_time >= 40):
+                break
         self.actor_list.append(self.vehicle)
 
         self.camera_bp = self.blueprint_library.find('sensor.camera.rgb')
@@ -178,12 +196,19 @@ class Herdragent():
         self.sensor_list.append(self.lane_sensor)
         self.lane_sensor.listen(lambda event: self.lane_check(event))
 
+        ''' Add IMU '''
+        imu = self.blueprint_library.find("sensor.other.imu")
+        self.imu = self.world.spawn_actor(imu, car_camera_transform, attach_to=self.vehicle)
+        self.sensor_list.append(self.imu)
+        self.imu.listen(lambda event: self.tilt_check(event))
+
         # del self.camera_bp 
         # del self.blueprint_library
         while self.frame is None:
             self.world.tick()
             time.sleep(0.01)
         self.get_goal(transform)
+        self.calc_p2pdist(transform.location)
     
     def update_controls(self):
         # vel = self.vehicle.get_velocity()
@@ -193,22 +218,33 @@ class Herdragent():
             a = 1.0
         else:
             a = 0.
-        self.vehicle.apply_control(carla.VehicleControl(throttle=a, steer=-self.planner.mean[1, 0].item()))
+        if self.training:
+            if torch.rand(1).item() >= 0.90:
+                idx = torch.randint(0,self.batches-1,(1,)).item()
+                self.vehicle.apply_control(carla.VehicleControl(throttle=a, steer=-self.actions[idx, 1, 0].item()))
+            else:
+                self.vehicle.apply_control(carla.VehicleControl(throttle=a, steer=-self.planner.mean[1, 0].item()))
+        else:
+            self.vehicle.apply_control(carla.VehicleControl(throttle=a, steer=-self.planner.mean[1, 0].item()))
 
     def calc_score_model(self):
         self.rot = torch.tensor(self.vehicle.get_transform().rotation.yaw).unsqueeze(0)/180*np.pi
         self.state = self.calculate_position()
         ''' goalReward Shape: [BATCH, HRZ] '''
         goalReward = torch.linalg.norm(self.state[:,:,:2]-self.GOAL, dim=2)
+        action_cost = self.actions[:,:,1] ** 2 / 8
         ''' Call Model '''
         img = self.frame.repeat(self.batches, 1, 1, 1)  # .unsqueeze(0)
         indices = torch.tensor([2, 1, 0])
         img = torch.index_select(img, 1, indices)
         self.event = self.model(img.to(self.device), self.actions.to(self.device))[:, :, 0].detach().cpu()
-        ''' Scale model output to macth distance for score '''
-        event_gain = goalReward.mean()*self.safety_gain
-        self.score = goalReward + event_gain * self.event
-
+        ''' Scale model output to match distance for score '''
+        # event_gain = goalReward.mean()*self.safety_gain
+        goalReward = (goalReward - goalReward.min()) / (goalReward.max() - goalReward.min())
+        self.score = self.goal_gain * goalReward + self.event #- action_cost
+        ''' ******* FOR DEBUGGING  ******** '''
+        # self.event = self.event #- action_cost
+        ''' ******* FOR DEBUGGING  ******** '''
         return self.score
 
     def is_safe(self, ped_list):
@@ -246,14 +282,15 @@ class Herdragent():
         self.state = self.calculate_position()
         ''' goalReward Shape: [BATCH, HRZ] '''
         goalReward = torch.linalg.norm(self.state[:,:,:2]-self.GOAL, dim=2)
+        action_cost = self.actions[:,:,1] ** 2 / 8
         ''' Call Model '''
         img = self.frame.repeat(self.batches, 1, 1, 1) #.unsqueeze(0)
         indices = torch.tensor([2, 1, 0])
         img = torch.index_select(img, 1, indices)
         self.event = self.sig(self.model(img.to(self.device), self.actions.to(self.device))[:, :, 0].detach().cpu())
-        ''' Scale model output to macth distance for score '''
-        event_gain = goalReward.mean()*self.safety_gain
-        self.score = goalReward + event_gain * self.event
+        ''' Scale model output to match distance for score '''
+        goalReward = (goalReward - goalReward.min()) / (goalReward.max() - goalReward.min())
+        self.score = self.goal_gain * goalReward + self.event # + action_cost
         return self.score
 
     def calculate_position(self):
@@ -272,8 +309,8 @@ class Herdragent():
         return batch_state.permute(0, 2, 1)
 
     def calc_p2pdist(self, loc):
-        loc = location2tensor(loc)
-        self.p2pdist = torch.linalg.norm(loc-self.GOAL[0], dim=2)
+        loc = location2tensor(loc)[[0,1]]
+        self.p2pdist = torch.linalg.norm(loc-self.GOAL[0])
         
     def reset_check(self):
         pos = location2tensor(self.vehicle.get_location())
@@ -281,7 +318,7 @@ class Herdragent():
         dist2goal = torch.linalg.norm(pos - self.GOAL[0])
         if dist2goal <= 0.75:
             self.done = True
-            self.success = True
+            self.success = 1.
             print('Made it!!!')
 
     def step(self):
@@ -313,6 +350,7 @@ class Herdragent():
         self.action_hist.clear()
         self.im_hist.clear()
         self.GND_hist.clear()
+        time.sleep(0.5)
 
 
 if __name__=='__main__':
