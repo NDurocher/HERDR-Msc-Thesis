@@ -61,8 +61,8 @@ class HERDR(nn.Module):
         # Change obs to 2*rnndim encoding, this is then split into Hx and Cx
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
-        Hx = Hx.repeat(1, 1, 1)
-        Cx = Cx.repeat(1, 1, 1)
+        Hx = Hx.repeat(1,1,1)
+        Cx = Cx.repeat(1,1,1)
         action = self.action_pre(action)
         # put "time" first
         action = action.transpose(1, 0)
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     hor = 20
     planner = HERDRPlan(Horizon=hor)
     # model = HERDR(Horizon=hor, RnnDim=64)
-    model = torch.load("../Test/controllers/Hircus/Herdr_Best_Feb22.pth",
+    model = torch.load("/Users/NathanDurocher/Documents/GitHub/HERDR/Test/controllers/Hircus/Herdr_Best_Feb22.pth",
                        map_location=torch.device('cpu'))
     model.model_out = nn.Sequential(
         model.model_out,
@@ -113,5 +113,6 @@ if __name__ == "__main__":
         # print(tout)
         # torch.onnx.export(model,(frame, actions),'Herdr.onnx')
         print("Prediction: ", r.detach().flatten())
+        break
         # print(r.shape, actions.shape)
         # planner.update_new(r.detach(), actions)

@@ -115,7 +115,7 @@ class carla_hdf5dataclass(data.Dataset):
         losses, correct, total = [], [], 0
         pos_correct, pos_total = [], 0
         incorrect = 0
-        criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=torch.tensor(7.9657).to(self.device))
+        criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=torch.tensor(7.6033).to(self.device))
         sig = nn.Sigmoid()
         step = start_step
         for img, act, gnd in dataloader:
@@ -157,9 +157,10 @@ if __name__ == "__main__":
     HRZ = 10
     pretrained = True
     if pretrained:
-        model = torch.load('/home/nathan/HERDR/models/carla03-04-2022--10:16.pth')
+        model = torch.load('/home/nathan/HERDR/models/carla05-04-2022--18:14.pth')
         opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
-        log_time = '03-04-2022--10:16'
+        # log_time = '03-04-2022--10:16'
+        log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
         writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
     else:
         model = HERDR(Horizon=HRZ)
@@ -170,7 +171,7 @@ if __name__ == "__main__":
     testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32)
     
     max_loss = 10000
-    end_step = 34834
+    end_step = 0
     for epoch in range(0, 20):
         loss, pos_accuracy, accuracy, end_step = dataset.one_epoch(model,testloader, start_step=end_step, writer=writer, opt=opt)
         print(f"Epoch{epoch} - Loss: {loss:.4f}, +Accuracy: {pos_accuracy:.4f}, TAccuracy: {accuracy:.4f}, # steps: {end_step}")

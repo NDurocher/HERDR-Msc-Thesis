@@ -94,7 +94,7 @@ if __name__ == "__main__":
     else:
         device = torch.device('cpu')
         print("Use CPU")
-    model = torch.load("/home/nathan/HERDR/models/carla31-03-2022--12:25:13.pth")
+    model = torch.load("/home/nathan/HERDR/models/carla07-04-2022--14:41.pth")
     model.model_out = nn.Sequential(
         model.model_out,
         nn.Sigmoid()

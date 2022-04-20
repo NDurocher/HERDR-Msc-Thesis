@@ -48,26 +48,26 @@ class HERDRPlan:
     def update_new(self, reward, sequence):
         # reward is a [batch x horizon x 1] tensor, sequence is a batch x horizon x 2 tensor
         reward = reward.sum(dim=1)
-        reward = (reward - reward.min())/(reward.max() - reward.min()) - 1
+        reward = reward - reward.max()
+        # reward = (reward - reward.min())/(reward.max() - reward.min()) - 1
         mean = torch.zeros(self.horizon, 2)
         s_R = torch.zeros(self.horizon, 1)
         for r, seq in zip(reward, sequence):
             mean += torch.exp(self.gamma * r) * seq
             s_R += torch.exp(self.gamma * r)
         self.mean = (mean / s_R).transpose(0, 1).double()
-        pass
 
 
 if __name__ == "__main__":
     device = torch.device('cuda:0')
-    test = HERDRPlan()
-    samp = test.sample_new(batches=3).to(device)
+    test = HERDRPlan(Horizon=10)
+    samp = test.sample_new(batches=3) #.to(device)
     # samp1 = test.sample_new()
     # samp = torch.stack((samp, samp1), 0)
     # print(samp.shape)
-    print(torch.randint(0,49,(1,)).item())
-    R = torch.tensor(np.random.rand(3, 10)).to(device)
+    # print(torch.randint(0,49,(1,)).item())
+    R = torch.tensor(np.random.rand(3, 10)) #.to(device)
     # samp = samp.unsqueeze(0)
-    # test.gamma.to(device)
-    # test.update_new(R, samp)
+    # test.gamma = test.gamma.to(device)
+    test.update_new(R, samp)
     # print(test.mean.shape)

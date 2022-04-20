@@ -16,7 +16,8 @@ from actionplanner import HERDRPlan
 from Carla_Trainer import carla_hdf5dataclass
 from torch.utils.data.sampler import SubsetRandomSampler
 import time
-
+import h5py
+import shutil
 
 def plot_trajectory(robot_traj, line_values, goal, traj_length=-1, collision=-1):
     plt.clf()
@@ -71,7 +72,7 @@ def plot_actions(position, line_values, location, GOAL, frame=None):
     plt.xlabel('Y-Position (m)')
     plt.ylabel('X-Position (m)')
     plt.title(f'Top view: Its working')
-    plt.scatter(GOAL[1], GOAL[0], s=20, c='red', marker="o")
+    plt.scatter(GOAL[1], GOAL[0], s=30, c='cyan', marker="o")
 
 
 def plot_action_cam_view(position, frame, event_probs, state, planner_mean=None):
@@ -99,28 +100,30 @@ def plot_action_cam_view(position, frame, event_probs, state, planner_mean=None)
     frame = torch.index_select(frame, 2, indices)    
     plt.imshow(frame.int().numpy(), extent=[-1.5, 1.5, 0, 2])
     plt.autoscale(False)
-    if type(planner_mean) != None:
-        ''' Display optimal path from planner mean '''
-        opt_state = np.zeros((10,3))
-        dt = 1/5
-        wb = 0.7
-        ''' opt_state := [X, Y, phi] '''
-        for i in range(0,len(planner_mean) - 1):
-            opt_state[i + 1, 0] = opt_state[i, 0] + dt * np.cos(
-                opt_state[i, 2]) * planner_mean[i, 0]
-            opt_state[i + 1, 1] = opt_state[i, 1] + dt * np.sin(
-                opt_state[i, 2]) * planner_mean[i, 0]
-            opt_state[i + 1, 2] = opt_state[i, 2] - dt * planner_mean[i, 1] * planner_mean[i, 0] / wb
-        opt_state[:, 1] = opt_state[:, 1]/abs(opt_state[:, 1]).max()*1.1
-        opt_state[:, 0] = opt_state[:, 0]/abs(opt_state[:, 0]).max()*0.7
-        points = np.expand_dims(np.array([opt_state[:, 1], opt_state[:, 0]]).T, 1)
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = LineCollection(segments, cmap=plt.get_cmap('YlGn'), norm=plt.Normalize(0, 1))
-        lc.set_array(np.ones((10)))
-        lc.set_linewidth(3)
-        plt.gca().add_collection(lc)
-
     plt.title('Probabilities of Unsafe Position')
+    if type(planner_mean) == type(None):
+        return
+    planner_mean = planner_mean.numpy().T
+    ''' Display optimal path from planner mean '''
+    opt_state = np.zeros((planner_mean.shape[0],3))
+    dt = 1/5
+    wb = 0.7
+    ''' opt_state := [X, Y, phi] '''
+    for i in range(0,len(planner_mean) - 1):
+        opt_state[i + 1, 0] = opt_state[i, 0] + dt * np.cos(
+            opt_state[i, 2]) * planner_mean[i, 0]
+        opt_state[i + 1, 1] = opt_state[i, 1] + dt * np.sin(
+            opt_state[i, 2]) * planner_mean[i, 0]
+        opt_state[i + 1, 2] = opt_state[i, 2] - dt * planner_mean[i, 1] * planner_mean[i, 0] / wb
+    opt_state[:, 1] = opt_state[:, 1]/abs(opt_state[:, 1]).max()*1.1
+    opt_state[:, 0] = opt_state[:, 0]/abs(opt_state[:, 0]).max()*0.7 
+    points = np.expand_dims(np.array([opt_state[:, 1], opt_state[:, 0]]).T, 1)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    lc = LineCollection(segments, cmap=plt.get_cmap('YlGn'), norm=plt.Normalize(0, 1))
+    lc.set_array(np.ones((10)))
+    lc.set_linewidth(3)
+    plt.gca().add_collection(lc)
+
 
 
 def count_data_ratio(loader):
@@ -130,15 +133,53 @@ def count_data_ratio(loader):
     print(f'Total Samples: {total}, # Positive: {positive} Ratio of total:positive {ratio:.4f}')
 
     
+def moveimages(h5file_path, recursive=False):
+    load_all_files = True
+    if load_all_files:
+            ''' Search for all h5 files else just load one'''
+            p = Path(h5file_path)
+            assert (p.is_dir())
+            if recursive:
+                files = sorted(p.glob('**/*.h5'))
+            else:
+                files = sorted(p.glob('*.h5'))
+            if len(files) < 1:
+                raise RuntimeError('No hdf5 datasets found')    
+            data = np.concatenate([loadfromfile(str(h5dataset_fp.resolve())) for h5dataset_fp in files])
+    else:
+        data = loadfromfile(h5file_path)
+ 
+        # '''find all indices where not done'''
+        # valid_start_indices = np.where(data[:,-1] == 'False')[0]
 
+    src = "/home/nathan/HERDR/carla_images/"
+    dst = "/home/nathan/HERDR/carla_images_used/"
+
+    for f in data[:,3]:
+        shutil.move(os.path.join(src, f+".jpg"), dst)
+
+def loadfromfile(file_path):
+    with h5py.File(file_path) as h5_file:
+        file_arr = np.ndarray(shape=(1,5))
+        for gpname, gp in h5_file.items():
+            # num_samples = len(gp['gnd'])
+            group_arr = np.concatenate([gp[name][...].astype(str) if 'actions' in name else gp[name][...][:,None].astype(str) for name in gp.keys()], axis=1)
+            done_arr = np.array([False if i < len(group_arr)-1 else True for i in range(len(group_arr))])
+            group_arr = np.concatenate((group_arr, done_arr[:,None]), axis=1)
+            file_arr = np.concatenate((file_arr, group_arr), axis=0)
+
+    ''' Delete empty row at start of arr'''
+    file_arr = file_arr[1:]
+    
+    ''' file array shape: [velocity, steer angle, gnd, image name, done]'''
+    return file_arr
 
 if __name__ == "__main__":
     dir_name = Path(Path.cwd())
-    dir_name = str(dir_name) + '/carla_hdf5s/'
+    dir_name = str(dir_name) + '/all_carla_hdf5s/'
     dataset = carla_hdf5dataclass(dir_name, 10, '/home/nathan/HERDR/carla_images/', load_all_files=True)
     print(len(dataset))
     test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
     testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=1)
     count_data_ratio(testloader)
-    # for index, row in df.iterrows():
-    #     plot_actions(row['State'], row['Event_Prob'], "50", row['Target_Pos'], dir_name)
+    # moveimages(dir_name,recursive=True)

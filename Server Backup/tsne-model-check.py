@@ -78,14 +78,14 @@ def act_checker(model, model_name, recursive=False):
         plt.savefig(f'/home/nathan/HERDR/tsne/plots/tsne-actions{a_idx}.png')
 
 
-def main(model, model_name):
+def cnn_check(model, model_name):
     model = model.obs_pre
-    w_ped = [resize(read_image(file).unsqueeze(0).float(), [720, 1280]) for file in glob.glob("../Test/controllers/Hircus/tnse_ped_other/*.png")]
-    wo_ped = [resize(read_image(file).unsqueeze(0).float(), [720, 1280]) for file in glob.glob("../Test/controllers/Hircus/tnse_no_ped/*.png")]
+    w_ped = [resize(read_image(file).unsqueeze(0).float(), [480, 640]) for file in glob.glob("/home/nathan/HERDR/tsne/with_ped/*.png")]
+    wo_ped = [resize(read_image(file).unsqueeze(0).float(), [480, 640]) for file in glob.glob("/home/nathan/HERDR/tsne/without_ped/*.png")]
     w_ped_emb = [model(im.to(device)).detach().squeeze(0).numpy() for im in w_ped]
     wo_ped_emb = [model(im.to(device)).detach().squeeze(0).numpy() for im in wo_ped]
-    key_w = ['with Pedestrians'] * len(w_ped)  # or close to
-    key_wo = ['Without Pedestrians'] * len(wo_ped)  # or far away
+    key_w = ['with Pedestrians'] * len(w_ped)  # or 0
+    key_wo = ['Without Pedestrians'] * len(wo_ped)  # or 1
     df_w = pd.DataFrame(w_ped_emb)
     df_w['key'] = key_w
     df_wo = pd.DataFrame(wo_ped_emb)
@@ -187,10 +187,10 @@ if __name__ == "__main__":
         device = torch.device('cpu')
         print("Use CPU")
     torch.manual_seed(12)
-    modl_name = "carla04-04-2022--14:03.pth"
+    modl_name = "carla07-04-2022--14:41.pth"
     modl = torch.load(f"/home/nathan/HERDR/models/{modl_name}")
-    # main(modl, modl_name)
+    cnn_check(modl, modl_name)
     # act_checker(modl, modl_name)
     # check_lstm(modl, modl_name)
-    check_lstm_one_img_many_st_angles(modl, modl_name)
+    # check_lstm_one_img_many_st_angles(modl, modl_name)
 
