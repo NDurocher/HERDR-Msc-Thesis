@@ -183,8 +183,8 @@ class Hircus (Supervisor):
         self.front_steer.setPosition(-steer)
         self.rear_steering_angle = steer
         self.rear_steer.setPosition(steer)
-        self.front_steer.setVelocity(2)
-        self.rear_steer.setVelocity(2)
+        self.front_steer.setVelocity(3)
+        self.rear_steer.setVelocity(3)
 
     def yolo_recognize(self):
         self.event = torch.zeros((BATCH, HRZ))

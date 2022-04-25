@@ -34,7 +34,7 @@ DEF Logger Robot {
     }
   ]
   controller "Logger"
-  customData "21.54591941833496"
+  customData "1.8349835872650146"
   supervisor TRUE
   synchronization FALSE
 }
@@ -101,12 +101,11 @@ DEF Ped2 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped3 Pedestrian {
-  translation 0.770002 1.33909 3.83001
-  rotation 0 1 0 1.5708
+  translation -0.099998 1.33909 3.83001
+  rotation 0 1 0 -3.1415853071795863
   name "pedestrian(8)"
-  controller "void"
   controllerArgs [
-    "--dist=15"
+    "--dist=8"
     "--straight"
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
@@ -324,7 +323,7 @@ DEF Hircus Robot {
             device [
               RotationalMotor {
                 name "front_steer"
-                maxVelocity 2
+                maxVelocity 3
                 minPosition -0.9599
                 maxPosition 1.5708
                 maxTorque 20
@@ -453,7 +452,7 @@ DEF Hircus Robot {
             device [
               RotationalMotor {
                 name "base_front_rod_joint"
-                maxVelocity 2
+                maxVelocity 3
                 minPosition -0.35
                 maxPosition 0.35
                 maxTorque 40
@@ -548,7 +547,7 @@ DEF Hircus Robot {
             device [
               RotationalMotor {
                 name "rear_steer"
-                maxVelocity 2
+                maxVelocity 3
                 minPosition -1.5708
                 maxPosition 0.9599
                 maxTorque 20
