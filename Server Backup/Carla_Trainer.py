@@ -1,7 +1,9 @@
+from unittest import TestLoader
 import numpy as np
 import torch
 import os
 from pathlib import Path
+import glob
 from torch.utils import data
 from torchvision.io import read_image
 from torch import nn
@@ -11,7 +13,7 @@ from tqdm.notebook import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import SubsetRandomSampler, RandomSampler 
 import h5py
-from Badgrnet import HERDR
+from Badgrnet import HERDR, HERDR_Pos
 from datetime import datetime
 # import deepspeed
 
@@ -23,7 +25,9 @@ class carla_hdf5dataclass(data.Dataset):
             trianing after collection or want to continue to grow dataset
         transform: PyTorch transform to apply to every data instance (default=None).'''
     
-    def __init__(self, h5file_path, horizon, imagefile_path, load_all_files=False, recursive=False, transform=None):
+    def __init__(self, h5file_path, horizon, imagefile_path, load_all_files=False, counting=False, recursive=False, transform=None):
+        self.pos_w = torch.tensor(11.6)
+        self.counting = counting
         self.transform = transform
         self.image_fp = imagefile_path
         # torch.manual_seed(12)
@@ -45,6 +49,7 @@ class carla_hdf5dataclass(data.Dataset):
             if len(files) < 1:
                 raise RuntimeError('No hdf5 datasets found')    
             self.data = np.concatenate([self.loadfromfile(str(h5dataset_fp.resolve())) for h5dataset_fp in files])
+            self.recursive_image_folders = [ f.path for f in os.scandir(self.image_fp) if f.is_dir() ]
         else:
             self.data = self.loadfromfile(h5file_path)
  
@@ -71,8 +76,18 @@ class carla_hdf5dataclass(data.Dataset):
         end_i = i+self.horizon
         ''' get image'''
         img_name = self.data[i, 3]
-        img = read_image(f'{self.image_fp}/{img_name}.jpg').float()
-        # img = torch.zeros((2,2))
+        if self.counting:
+            img = torch.zeros((2,2))
+        else:
+            path = Path(f'{self.image_fp}/{img_name}.jpg')
+            if not path.is_file():
+                folder_i = iter(self.recursive_image_folders)
+                while not path.is_file():
+                    folder = next(folder_i)
+                    path = Path(f'{folder}/{img_name}.jpg')
+            # path = glob.glob(f'{self.image_fp}/**/{img_name}.jpg', recursive=True)[0]
+            img = read_image(f'{path}').float()
+            # img = read_image(f'{self.image_fp}/{img_name}.jpg').float()
         
         ls = np.concatenate((self.data[i:end_i, 0:3], self.data[i:end_i, 4, None]), axis=1).copy()
         done_index = np.where(ls[:,3] == 'True')[0]
@@ -108,6 +123,24 @@ class carla_hdf5dataclass(data.Dataset):
 
         return img, act, gnd
 
+    def set_pos_w(self, value):
+        ''' Set the positive gnd loss weight and re-enable image loading in get_data '''
+        self.pos_w = value/4
+        self.counting = False
+
+    def calculate_position(self, actions):
+        state = torch.zeros((actions.shape[0],actions.shape[1] ,3)).to(self.device)
+        control_freq = torch.tensor(1/5).to(self.device)
+        wheelbase = torch.tensor(0.7).to(self.device)
+        ''' [X Y Phi] '''
+        for i in range(0, actions.shape[1]-1):
+            state[:,i+1,0] = state[:,i,0] + (1/control_freq) * torch.cos(state[:,i,2]) * actions[:, i, 0]
+            state[:,i+1,1] = state[:,i,1] + (1/control_freq) * torch.sin(state[:,i,2]) * actions[:, i, 0]
+            state[:,i+1,2] = state[:,i,2] - (1/control_freq) * actions[:, i, 1] * actions[:, i, 0] / wheelbase
+        ''' Output shape: [batch, 3], return just X,Y '''
+        state[:,:,:2] = (state[:,:,:2] - state[:,:,:2].mean()) / (state[:,:,:2].max() - state[:,:,:2].min())
+        return state[:,:,:2]
+
     def one_epoch(self, model, dataloader, start_step=0, writer=None, opt=None):
         train = False if opt is None else True
         model.train() if train else model.eval()
@@ -115,23 +148,27 @@ class carla_hdf5dataclass(data.Dataset):
         losses, correct, total = [], [], 0
         pos_correct, pos_total = [], 0
         incorrect = 0
-        criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=torch.tensor(7.6033).to(self.device))
+        criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=self.pos_w.to(self.device))
+        pos_criteria = nn.MSELoss(reduction='sum')
         sig = nn.Sigmoid()
         step = start_step
         for img, act, gnd in dataloader:
             model.zero_grad()
             img, act, gnd = img.to(self.device), act.to(self.device), gnd.to(self.device) 
+            positions = self.calculate_position(act)
             with torch.set_grad_enabled(train):
-                logits = model(img,act)
-            loss = criterion(logits, gnd)
+                logits, position_est = model(img,act)
+                # logits = model(img,act)
+            # loss = criterion(logits, gnd)
+            loss = criterion(logits, gnd) + pos_criteria(position_est, positions)
             
             samples = gnd.shape[0]*gnd.shape[1]
             total += samples
             pos_samples = torch.count_nonzero(gnd)
             pos_total += pos_samples
             pos_correct.append(torch.count_nonzero(torch.logical_and( (abs(gnd-sig(logits)) < 0.30), gnd)).item())
-            correct.append(torch.count_nonzero(abs(gnd-sig(logits)) < 0.30).item())
-            incorrect = torch.count_nonzero(abs(sig(logits)-gnd) >= 0.30).item()
+            correct.append(torch.count_nonzero(abs(gnd-sig(logits)) < 0.50).item())
+            incorrect = torch.count_nonzero(abs(sig(logits)-gnd) >= 0.50).item()
             
             if train:
                 loss.backward()
@@ -146,6 +183,8 @@ class carla_hdf5dataclass(data.Dataset):
                 if pos_samples > 0:
                     writer.add_scalar("Train/Pos_Accuracy", pos_correct[-1]/pos_samples, step)  # writer.add_scalar("Pos_Accuracy/valid", pos_correct[-1]/pos_samples, step) if opt is None else  
             del loss
+            if step % 1000:
+                torch.save(model, f'./models/carla_temp_{log_time}.pth')
             step += 1
         
         return np.mean(losses), sum(pos_correct)/pos_total, sum(correct)/total, step
@@ -153,9 +192,13 @@ class carla_hdf5dataclass(data.Dataset):
 
 
 if __name__ == "__main__":
-    dataset = carla_hdf5dataclass('/home/nathan/HERDR/carla_hdf5s/', 10, '/home/nathan/HERDR/carla_images/', load_all_files=True)
     HRZ = 10
-    pretrained = True
+    dataset = carla_hdf5dataclass('/home/nathan/HERDR/all_carla_hdf5s/', HRZ, '/home/nathan/HERDR/carla_images/', recursive=True, load_all_files=True)
+    test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
+    testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32)
+    # print(next(iter(testloader)))
+    
+    pretrained = False
     if pretrained:
         model = torch.load('/home/nathan/HERDR/models/carla05-04-2022--18:14.pth')
         opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
@@ -163,18 +206,16 @@ if __name__ == "__main__":
         log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
         writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
     else:
-        model = HERDR(Horizon=HRZ)
+        model = HERDR_Pos(Horizon=HRZ)
         opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
         log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
         writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
-    test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
-    testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32)
     
     max_loss = 10000
     end_step = 0
-    for epoch in range(0, 20):
+    for epoch in range(0, 50):
         loss, pos_accuracy, accuracy, end_step = dataset.one_epoch(model,testloader, start_step=end_step, writer=writer, opt=opt)
-        print(f"Epoch{epoch} - Loss: {loss:.4f}, +Accuracy: {pos_accuracy:.4f}, TAccuracy: {accuracy:.4f}, # steps: {end_step}")
+        print(f"Epoch {epoch+1} - Loss: {loss:.4f}, +Accuracy: {pos_accuracy:.4f}, TAccuracy: {accuracy:.4f}, # steps: {end_step}")
         if loss < max_loss:
             max_loss = loss
             torch.save(model, f'./models/carla{log_time}.pth')

@@ -15,12 +15,11 @@ class HERDR(nn.Module):
         self.rnndim = RnnDim
 
         self.obs_pre = nn.Sequential(
-            # nn.LayerNorm([3, 240, 320]),
             nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
-            # nn.MaxPool2d(4, stride=2),
+            nn.MaxPool2d(4, stride=2),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
-            # nn.MaxPool2d(4, stride=2),
+            nn.MaxPool2d(2, stride=2),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
             nn.ReLU(),
@@ -47,30 +46,55 @@ class HERDR(nn.Module):
         self.lstm = nn.LSTM(input_size=16, hidden_size=self.rnndim, num_layers=1, batch_first=False)
 
     def normalize(self, arr):
-        # up, low = arr.max(), arr.min()
-        # mu = arr.mean()
-        # std = 0.5 * (up - low)
-        # normed_arr = (arr - mu) / std
         normed_arr = arr/255 - 0.5
         return normed_arr
 
     def forward(self, img, action):
         obs = self.obs_pre(self.normalize(img))
-        # Change obs to 2*rnndim encoding, this is then split into Hx and Cx
+        ''' Change obs to 2*rnndim encoding, this is then split into Hx and Cx '''
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
         '''Can replace repeat(1,1,1), with repeat(1,action.shape[0]) during runtime for significant speed improvment'''
         Hx = Hx.repeat(1, 1, 1)
         Cx = Cx.repeat(1, 1, 1)
         action = self.action_pre(action)
-        # put "time" first
-        action = action.transpose(1, 0)
+        action = action.transpose(1, 0)# put "time" first
         out, (_, _) = self.lstm(action, (Hx, Cx))
-        # put "batch" first
-        out = out.transpose(1, 0)
+        ''' out.shape = [horizon, batch, hidden(64) '''
+        out = out.transpose(1, 0) # put "batch" first
         out = self.model_out(out)
-        # Output shape is (Batch, Horizon, 1))
+        ''' Output shape is (Batch, Horizon, 1)) '''
         return out
+
+class HERDR_Pos(HERDR):
+    def __init__(self, Horizon=1, RnnDim=64):
+        super().__init__()
+        self.horizon = Horizon
+        self.rnndim = RnnDim
+
+        self.model_out = nn.Sequential(
+            nn.Linear(self.rnndim, 32),
+            nn.ReLU(),
+            nn.Linear(32, 3)
+        )
+
+    def forward(self, img, action):
+        obs = self.obs_pre(self.normalize(img))
+        ''' Change obs to 2*rnndim encoding, this is then split into Hx and Cx '''
+        obs = self.init_hidden(obs)
+        Hx, Cx = torch.chunk(obs, 2, dim=1)
+        '''Can replace repeat(1,1,1), with repeat(1,action.shape[0]) during runtime for significant speed improvment'''
+        Hx = Hx.repeat(1, 1, 1)
+        Cx = Cx.repeat(1, 1, 1)
+        action = self.action_pre(action)
+        action = action.transpose(1, 0)# put "time" first
+        out, (_, _) = self.lstm(action, (Hx, Cx))
+        ''' out.shape = [horizon, batch, hidden(64) '''
+        out = out.transpose(1, 0) # put "batch" first
+        out = self.model_out(out)
+        ''' Output shape is (Batch, Horizon, 3)) '''
+        event, pos_est = out[:,:,0], out[:,:,1:]
+        return event.unsqueeze(2), pos_est
 
 
 if __name__ == "__main__":
@@ -86,15 +110,16 @@ if __name__ == "__main__":
     batches = 2
     hor = 10
     planner = HERDRPlan(Horizon=hor, steer_init=0.5)
-    # model = HERDR(Horizon=hor, RnnDim=64)
-    # print(torch.cuda.current_device())
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
-        print("Use GPU")
+        # print("Use GPU")
     else:
         device = torch.device('cpu')
-        print("Use CPU")
-    model = torch.load("/home/nathan/HERDR/models/carla07-04-2022--14:41.pth")
+        # print("Use CPU")
+
+
+    model = HERDR_Pos(Horizon=hor, RnnDim=64)
+    # model = torch.load("/home/nathan/HERDR/models/carla07-04-2022--14:41.pth")
     model.model_out = nn.Sequential(
         model.model_out,
         nn.Sigmoid()
@@ -117,8 +142,9 @@ if __name__ == "__main__":
         actions = planner.sample_new(batches=batches)
         # print(frame.shape, actions.shape)
         frame, actions = frame.to(device), actions.to(device)
-        r = model(frame, actions)
-        print(r.flatten(start_dim=0, end_dim=1))
+        r, pos = model(frame, actions)
+        print(r)
+        print(pos)
         # tout = torch.count_nonzero(abs(r[:, :, 0] - t1) < 0.11)
         # print(tout)
         # torch.onnx.export(model,(frame, actions),'Herdr.onnx')

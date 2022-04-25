@@ -23,8 +23,9 @@ from torch import nn
 import time
 from datetime import datetime
 from pathlib import Path
+from matplotlib import pyplot as plt
 
-from Badgrnet import HERDR
+from Badgrnet import HERDR, HERDR_Pos
 from actionplanner import HERDRPlan
 from metrics_utils import plot_action_cam_view, plot_actions, plot_trajectory
 
@@ -41,6 +42,7 @@ class Herdragent():
     action_hist = []
     im_hist = []
     GND_hist = []
+    vel_hist = []
     spawn_locations = []
     im_width = 640 # pixels
     im_height = 480 # pixels
@@ -153,18 +155,19 @@ class Herdragent():
                 
     def collison_check(self, event):
         if not self.done:
+            print("Collided")
             self.collision_hist.append(event.timestamp)
     
     def lane_check(self, event):
         if not self.done:
-            print("Drove onto Road")
-            self.collision_hist.append(event.timestamp)
+            print("Supposedly drove onto Road")
+            # self.collision_hist.append(event.timestamp)
     
     def tilt_check(self, event):
         roll, pitch, yaw = event.gyroscope.x, event.gyroscope.y, event.gyroscope.z
         # print(roll, pitch, yaw) 
         if not self.done:
-            max_tilt_rate = 0.75
+            max_tilt_rate = 0.80
             if abs(roll) >= max_tilt_rate or abs(pitch) >= max_tilt_rate:
                 print("Tilted")
                 self.collision_hist.append(event.timestamp)
@@ -266,6 +269,7 @@ class Herdragent():
         indices = torch.tensor([2, 1, 0])
         img = torch.index_select(img, 1, indices)
         self.event = self.model(img.to(self.device), self.actions.to(self.device))[:, :, 0].detach().cpu()
+        # self.event = self.event
         ''' Scale model output to match distance for score '''
         # event_gain = goalReward.mean()*self.safety_gain
         goalReward = (goalReward - goalReward.min()) / (goalReward.max() - goalReward.min())
@@ -301,7 +305,6 @@ class Herdragent():
             check = check.int()
             self.safe = torch.logical_or(check, self.safe).float()
             if self.safe.item() == 1:
-                print(f'In Pedestrain Space.')
                 return
         return
 
@@ -349,6 +352,16 @@ class Herdragent():
             self.success = 1.
             print('Made it!!!')
 
+    def plot(self):
+        dir_name = Path(Path.cwd())
+        dir_name = str(dir_name) + '/HERDR_results'
+        fig = plt.figure(figsize=(16, 9), dpi=80)
+        plt.plot(self.vel_hist)
+        plt.xlabel('Time (step #)')
+        plt.ylabel('Velocity (m/s)')
+        plt.title(f'CARLA Pedestrain Velocity through Time')
+        plt.savefig(f"{dir_name}/CARLA_agent_velocity_time.jpg")
+
     def step(self):
         self.actions = self.planner.sample_new(batches=self.batches)
         score = self.infer()
@@ -357,6 +370,7 @@ class Herdragent():
         self.action_hist.append(self.planner.mean[:, 0].numpy())
         now = datetime.now()
         self.im_hist.append(f'{now}')
+        self.vel_hist.append(self.vehicle.get_velocity().length())
         if self.recording != None:
             cv2.imwrite(f'./carla_images/{self.recording}/{now}.jpg', self.frame.permute(1, 2, 0).numpy())
         self.update_controls()
