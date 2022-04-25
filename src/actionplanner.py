@@ -12,7 +12,7 @@ class HERDRPlan:
         self.mean = torch.stack((vel_mean, steer_mean)).double()
         # set guess for variance
         vel_cov = 0.1*torch.ones(self.horizon, 1)
-        steer_cov = 1.*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
+        steer_cov = 0.8*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
         self.cov = torch.stack((vel_cov, steer_cov)).transpose(2, 0)
         # Define parameter to adjust for high weight updates
         self.gamma = gamma
@@ -46,6 +46,7 @@ class HERDRPlan:
 
     def update_new(self, reward, sequence):
         # reward is a [batch x horizon x 1] tensor, sequence is a batch x horizon x 2 tensor
+        # reward = reward * torch.linspace(0.8, 1, self.horizon)
         reward = reward.sum(dim=1)
         reward = (reward - reward.min())/(reward.max() - reward.min()) - 1
         mean = torch.zeros(self.horizon, 2)

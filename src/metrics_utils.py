@@ -90,8 +90,8 @@ def plot_action_cam_view(actions, frame, event_probs, steer_angle, current_speed
         pos[:, i+1, 1] = pos[:, i, 1] + dt * torch.cos(omega) * actions[:, i, 0]
         omega = omega - dt * actions[:, i, 1] * actions[:, i, 0] / wb
     '''rescale x,y axes to look more 3D'''
-    pos[:, :, 1] = pos[:, :, 1]/abs(pos[:, :, 1]).max()*1.2
-    pos[:, :, 0] = pos[:, :, 0]/abs(pos[:, :, 0]).max()*0.8
+    pos[:, :, 1] = pos[:, :, 1]/abs(pos[:, :, 1]).max()*0.8
+    pos[:, :, 0] = pos[:, :, 0]/abs(pos[:, :, 0]).max()*1.2
 
     for p, e in zip(pos.numpy(), event_probs.numpy()):
         points = np.expand_dims(np.array([p[:, 0], p[:, 1]]).T, 1)

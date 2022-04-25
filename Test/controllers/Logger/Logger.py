@@ -80,11 +80,11 @@ Hircus_traj = []
 ped_trajs = []
 min_dist = []
 in_collision = []
-writer_dist = animation.FFMpegWriter(fps=5)
-writer_score = animation.FFMpegWriter(fps=5)
+writer_dist = animation.FFMpegWriter(fps=7)
+writer_score = animation.FFMpegWriter(fps=7)
 fig = plt.figure(figsize=(16, 8.9), dpi=80)
-writer_dist.setup(fig, 'clearance.mp4')
-writer_score.setup(fig, 'score.mp4')
+writer_dist.setup(fig, '/home/nathan/HERDR/VideosOut/clearance.mp4')
+writer_score.setup(fig, '/home/nathan/HERDR/VideosOut/score.mp4')
 controller = Logger()
 GOAL = controller.cc.getPosition()
 unsafe_score = []
@@ -92,7 +92,7 @@ while not controller.step(controller.timestep) == -1:
     GOAL = controller.cc.getPosition()
     Hircuspos = controller.hircus.getPosition()
     Hircus_traj.append(np.asarray(Hircuspos-np.asarray(GOAL)))
-    if not controller.getTime() == 0.1:
+    if controller.getTime() > 0.1:
         ped_trajs.append([p.getPosition() - np.asarray(GOAL) for p in controller.peds])
     out_log = controller.log(Hircuspos, controller.peds)
     min_dist.append(out_log[0])
@@ -105,7 +105,7 @@ while not controller.step(controller.timestep) == -1:
                     "Clearance", traj_length, collision=in_collision.count(1))
     writer_dist.grab_frame()
     plot_trajectory(np.asarray(Hircus_traj), np.asarray(unsafe_score), np.asarray(ped_trajs), np.array([0, 0, 0]),
-                    "Clearance", traj_length, collision=in_collision.count(1))
+                    "Event Totals", traj_length, collision=in_collision.count(1))
     writer_score.grab_frame()
 writer_dist.finish()
 writer_score.finish()

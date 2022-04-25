@@ -6,7 +6,7 @@ WorldInfo {
   title "Autonomous Vehicle"
   ERP 0.6
   basicTimeStep 100
-  FPS 12
+  FPS 6
   optimalThreadCount 4
   coordinateSystem "NUE"
   lineScale 1
@@ -17,8 +17,8 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.3187349290295517 -0.8535767853163682 -0.41208581216234763 4.308636476373552
-  position 19.572567835195414 21.347034984273442 -3.5809740734633095
+  orientation 0.39304627825027755 -0.8070535472110736 -0.4406576847027959 4.389447021695424
+  position 17.422641459715546 24.296294802500352 -1.6252716159187397
   near 1
   follow "Thymio II"
   followType "Mounted Shot"
@@ -33,7 +33,8 @@ DEF Logger Robot {
       height 500
     }
   ]
-  customData "182.4317626953125"
+  controller "Logger"
+  customData "21.54591941833496"
   supervisor TRUE
   synchronization FALSE
 }
@@ -50,9 +51,11 @@ CircleArena {
   wallHeight 1
 }
 DEF Ped1 Pedestrian {
-  translation 10.47 1.33909 3.6
-  controller "void"
+  translation -2.82 1.33909 1.69
+  rotation 0 1 0 1.5708
   controllerArgs [
+    "--dist=12"
+    "--straight"
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
   ]
@@ -72,12 +75,11 @@ DEF Ped1 Pedestrian {
   headAngle 0.16363636363636572
 }
 DEF Ped2 Pedestrian {
-  translation 2.9 1.33909 -7.22
-  rotation 0 1 0 -1.5707953071795862
+  translation 2.9 1.33909 -3.87
+  rotation 0 -1 0 0.523598
   name "pedestrian(7)"
-  controller "void"
   controllerArgs [
-    "--dist=0"
+    "--dist=7"
     "--straight"
     "--trajectory=0 3, 0 -4"
     "--speed=1.0"
@@ -99,7 +101,7 @@ DEF Ped2 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped3 Pedestrian {
-  translation -2.66999 1.33909 6.35001
+  translation 0.770002 1.33909 3.83001
   rotation 0 1 0 1.5708
   name "pedestrian(8)"
   controller "void"
@@ -125,7 +127,7 @@ DEF Ped3 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped4 Pedestrian {
-  translation -1.50382 1.33909 -7.595
+  translation -1.50382 1.33909 -3.195
   rotation 0 1 0 -1.5707953071795862
   name "pedestrian(9)"
   controller "void"
@@ -149,7 +151,7 @@ DEF Ped4 Pedestrian {
   headAngle 0.024545454545453965
 }
 DEF Ped5 Pedestrian {
-  translation 1.15 1.33909 4.84
+  translation 1.15 1.33909 0.26
   name "pedestrian(10)"
   controller "void"
   controllerArgs [
@@ -205,8 +207,8 @@ DEF Hircus Robot {
       rotation 0.577349935856137 -0.5773509358560258 -0.577349935856137 2.0944
       name "CAM"
       fieldOfView 2.618
-      width 640
-      height 480
+      width 1280
+      height 720
       recognition Recognition {
         maxObjects 3
       }
@@ -290,7 +292,7 @@ DEF Hircus Robot {
       ]
       endPoint Solid {
         translation 0.19 0 0
-        rotation 0 0.9999999999999999 0 0.023672591753964793
+        rotation 0 0.9999999999999999 0 0.02367259175396479
         children [
           Shape {
             appearance PBRAppearance {
@@ -557,7 +559,7 @@ DEF Hircus Robot {
             ]
             endPoint Solid {
               translation -0.19 0 0
-              rotation 0 0 -1 1.5707951153489712
+              rotation 0 0 -1 1.5707951153489708
               children [
                 Gyro {
                   rotation 0.5773502691896257 0.5773502691896257 0.5773502691896257 2.09394
@@ -589,7 +591,7 @@ DEF Hircus Robot {
                     }
                   ]
                   endPoint Solid {
-                    rotation 1 0 0 8.41354978888822e-07
+                    rotation 1 0 0 8.413549788888221e-07
                     children [
                       Transform {
                         rotation 1 0 0 1.570795
@@ -868,7 +870,7 @@ DEF Hircus Robot {
   }
   controller "Hircus"
   controllerArgs [
-    "--training"
+    ""
   ]
   supervisor TRUE
 }

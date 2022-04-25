@@ -105,7 +105,7 @@ class Hircus (Supervisor):
             if self.accel:
                 return self.accel_infer
             else:
-                self.net = torch.load('Herdr_Feb22_640_2Hr.pth', map_location=torch.device('cpu'))
+                self.net = torch.load('Herdr_Best_Feb22.pth', map_location=torch.device('cpu'))
                 self.net.model_out = nn.Sequential(
                     self.net.model_out,
                     nn.Sigmoid()
@@ -122,7 +122,8 @@ class Hircus (Supervisor):
     def model_infer(self):
         indices = torch.tensor([2, 1, 0])
         self.frame = torch.index_select(self.frame, 1, indices)
-        self.event = self.net(self.frame, self.actions)[:, :, 0].detach()
+        img = self.frame[0, :, :].unsqueeze(0)
+        self.event = self.net(img, self.actions)[:, :, 0].detach()
 
     def load_webots_devices(self):
         self.left_motor = self.getDevice('left_wheel')
@@ -250,8 +251,9 @@ class Hircus (Supervisor):
         self.infer()
         plot_action_cam_view(self.actions, self.frame[0], self.event,
                              self.rear_steering_angle, self.front_motor.getVelocity()*WHEEL_RADIUS)
-        event_gain = goalReward.mean()*1.1
-        reward = goalReward + event_gain * self.event
+        goalReward = (goalReward - goalReward.min()) / (goalReward.max() - goalReward.min())
+        goal_gain = 0.2
+        reward = goalReward * goal_gain + self.event
         return reward
 
     def calculate_position(self, rot):
@@ -365,12 +367,12 @@ opt_parser.add_option("--goal", help="Specify Target Position - Format x,z")
 options, args = opt_parser.parse_args()
 
 WHEEL_RADIUS = 0.16  # m
-WEBOTS_STEP_TIME = 200
+WEBOTS_STEP_TIME = 100
 DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME)
 SCALE = 1000
 GNSS_RATE = 1
 HRZ = 10
-BATCH = 70
+BATCH = 50
 if options.goal is None:
     GOAL = torch.tensor([-3, uniform(-3, 3)]).repeat(BATCH, HRZ, 1)
 else:
@@ -400,15 +402,16 @@ cmap = mpl.cm.YlOrRd
 norm = mpl.colors.Normalize(vmin=0, vmax=1)
 cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
 # file = h5py.File(f'./hdf5s/{datetime.now()}.h5', 'w')
-# writer = animation.FFMpegWriter(fps=2)
-# writer.setup(fig, 'actions_cam_view.mp4')
+writer = animation.FFMpegWriter(fps=5)
+writer.setup(fig, '/home/nathan/HERDR/VideosOut/actions_cam_view.mp4')
+controller.simulationSetMode(0)
 while not controller.step(WEBOTS_STEP_TIME) == -1:
     controller.Herdr()
-    # writer.grab_frame()
-    # controller.customdata.setSFString(str(torch.sum(controller.event).item()))
+    writer.grab_frame()
+    controller.customdata.setSFString(str(torch.sum(controller.event).item()))
 # file.close()
 if options.cmpstk:
     del ie, net, exec_net
-# writer.finish()
+writer.finish()
 
 

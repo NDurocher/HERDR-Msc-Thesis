@@ -54,6 +54,7 @@ class HERDR(nn.Module):
         mu = arr.mean()
         std = 0.5 * (up - low)
         normed_arr = (arr - mu) / std
+        # arr = arr/255 - 0.5
         return normed_arr
 
     def forward(self, img, action):
@@ -61,8 +62,12 @@ class HERDR(nn.Module):
         # Change obs to 2*rnndim encoding, this is then split into Hx and Cx
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
-        Hx = Hx.repeat(1,1,1)
-        Cx = Cx.repeat(1,1,1)
+        # # Hx = Hx.repeat(1,1,1)
+        # # Cx = Cx.repeat(1,1,1)
+        # Hx = Hx[None,:,:]
+        # Cx = Cx[None,:,:]
+        Hx = Hx.repeat(1, action.shape[0], 1)
+        Cx = Cx.repeat(1, action.shape[0], 1)
         action = self.action_pre(action)
         # put "time" first
         action = action.transpose(1, 0)

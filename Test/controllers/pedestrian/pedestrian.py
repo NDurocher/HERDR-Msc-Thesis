@@ -109,8 +109,8 @@ class Pedestrian (Supervisor):
             position = self.root_translation_field.getSFVec3f()
             rotation = self.root_rotation_field.getSFRotation()
             rotation = np.array(rotation[0:3]) * rotation[3]
-            position[2] = uniform(-1.75, 1.75)
-            position[0] = uniform(-6, 3)
+            position[2] += uniform(-1.75, 1.75)
+            position[0] += uniform(-1.75, 1.75)
             x = [str(position[0]), str(position[0] + options.dist * np.sin(rotation[1]))]  # world x-axis
             y = [str(position[2]), str(position[2] + options.dist * np.cos(rotation[1]))]  # world z-axis
         else:
