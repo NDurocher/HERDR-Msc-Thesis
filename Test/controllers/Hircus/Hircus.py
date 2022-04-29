@@ -50,8 +50,8 @@ class Hircus (Supervisor):
     def __init__(self, train=True, accel=False, ultra=False):
         """Constructor: initialize constants."""
         Supervisor.__init__(self)
-        self.df = pd.DataFrame(columns=["Actions", "Ground_Truth", "Image_Name"])
-        self.stateR_df = pd.DataFrame(columns=["State", "Event_Prob", "Target_Pos"])
+        # self.df = pd.DataFrame(columns=["Actions", "Ground_Truth", "Image_Name"])
+        # self.stateR_df = pd.DataFrame(columns=["State", "Event_Prob", "Target_Pos"])
         self.train = train
         self.accel = accel
         self.is_ultra = ultra
@@ -372,7 +372,7 @@ DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME)
 SCALE = 1000
 GNSS_RATE = 1
 HRZ = 10
-BATCH = 50
+BATCH = 40
 if options.goal is None:
     GOAL = torch.tensor([-3, uniform(-3, 3)]).repeat(BATCH, HRZ, 1)
 else:
@@ -397,21 +397,21 @@ if options.cmpstk:
     inference_request = exec_net.requests[0]
 
 controller = Hircus(train=options.training, accel=options.cmpstk, ultra=options.ultrasound)
-fig = plt.figure(figsize=(16, 8.9), dpi=80)
-cmap = mpl.cm.YlOrRd
-norm = mpl.colors.Normalize(vmin=0, vmax=1)
-cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
+# fig = plt.figure(figsize=(16, 8.9), dpi=80)
+# cmap = mpl.cm.YlOrRd
+# norm = mpl.colors.Normalize(vmin=0, vmax=1)
+# cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
 # file = h5py.File(f'./hdf5s/{datetime.now()}.h5', 'w')
-writer = animation.FFMpegWriter(fps=5)
-writer.setup(fig, '/home/nathan/HERDR/VideosOut/actions_cam_view.mp4')
-controller.simulationSetMode(0)
+# writer = animation.FFMpegWriter(fps=5)
+# writer.setup(fig, '/home/nathan/HERDR/VideosOut/actions_cam_view.mp4')
+# controller.simulationSetMode(0)
 while not controller.step(WEBOTS_STEP_TIME) == -1:
     controller.Herdr()
-    writer.grab_frame()
-    controller.customdata.setSFString(str(torch.sum(controller.event).item()))
+    # writer.grab_frame()
+    # controller.customdata.setSFString(str(torch.sum(controller.event).item()))
 # file.close()
 if options.cmpstk:
     del ie, net, exec_net
-writer.finish()
+# writer.finish()
 
 
