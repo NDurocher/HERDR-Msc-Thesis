@@ -15,18 +15,35 @@ class HERDR(nn.Module):
         self.rnndim = RnnDim
 
         self.obs_pre = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
+            nn.Conv2d(3, 16, kernel_size=(5, 5), stride=(2, 2)),
+            nn.MaxPool2d(5, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(16, 32, kernel_size=(5, 5), stride=(2, 2)),
             nn.MaxPool2d(4, stride=2),
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
-            nn.MaxPool2d(2, stride=2),
+            nn.Conv2d(32, 32, kernel_size=(4, 4), stride=(2, 2)),
+            nn.MaxPool2d(3, stride=2),
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
+            nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1)),
             nn.ReLU(),
             nn.Flatten(),
             nn.LazyLinear(256),
             nn.ReLU(),
             nn.Linear(256, 128),
+
+        # self.obs_pre = nn.Sequential(
+        #     nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
+        #     nn.MaxPool2d(4, stride=2),
+        #     nn.ReLU(),
+        #     nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
+        #     nn.MaxPool2d(2, stride=2),
+        #     nn.ReLU(),
+        #     nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
+        #     nn.ReLU(),
+        #     nn.Flatten(),
+        #     nn.LazyLinear(256),
+        #     nn.ReLU(),
+        #     nn.Linear(256, 128),
         )
         self.action_pre = nn.Sequential(
             nn.Linear(2, 16),
@@ -55,8 +72,12 @@ class HERDR(nn.Module):
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
         '''Can replace repeat(1,1,1), with repeat(1,action.shape[0]) during runtime for significant speed improvment'''
-        Hx = Hx.repeat(1, 1, 1)
-        Cx = Cx.repeat(1, 1, 1)
+        if obs.shape[0] == 1:
+            Cx = Cx.repeat(1, action.shape[0], 1)
+            Hx = Hx.repeat(1, action.shape[0], 1)
+        else:
+            Hx = Hx.repeat(1, 1, 1)
+            Cx = Cx.repeat(1, 1, 1)
         action = self.action_pre(action)
         action = action.transpose(1, 0)# put "time" first
         out, (_, _) = self.lstm(action, (Hx, Cx))

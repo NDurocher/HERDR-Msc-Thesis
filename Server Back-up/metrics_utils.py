@@ -119,6 +119,17 @@ def plot_action_cam_view(position, frame, event_probs, state, planner_mean=None)
     # lc.set_linewidth(3)
     # plt.gca().add_collection(lc)
 
+def add2pickle(file_name, run_dict, overwrite=False):
+    dataframe = pd.DataFrame(run_dict, index=[0])
+    if os.path.isfile(f'{file_name}') and not overwrite:
+        pkl_dataframe = pd.read_pickle(file_name)
+        pkl_dataframe = pkl_dataframe.append(dataframe, ignore_index=True)
+        print(len(pkl_dataframe))
+        pkl_dataframe.to_pickle(file_name, protocol=4)
+    else:
+        dataframe.to_pickle(file_name, protocol=4)
+    
+
 
 
 def count_data_ratio(loader):

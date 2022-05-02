@@ -8,7 +8,6 @@ from torch.utils import data
 from torchvision.io import read_image
 from torch import nn
 from torchvision.transforms.functional import resize, hflip
-from torchvision.transforms import Resize
 from tqdm.notebook import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import SubsetRandomSampler, RandomSampler 
@@ -86,6 +85,7 @@ class carla_hdf5dataclass(data.Dataset):
                     folder = next(folder_i)
                     path = Path(f'{folder}/{img_name}.jpg')
             # path = glob.glob(f'{self.image_fp}/**/{img_name}.jpg', recursive=True)[0]
+            # img = resize(read_image(f'{path}'),[96,192]).float()
             img = read_image(f'{path}').float()
             # img = read_image(f'{self.image_fp}/{img_name}.jpg').float()
         
@@ -149,18 +149,18 @@ class carla_hdf5dataclass(data.Dataset):
         pos_correct, pos_total = [], 0
         incorrect = 0
         criterion = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=self.pos_w.to(self.device))
-        pos_criteria = nn.MSELoss(reduction='sum')
+        # pos_criteria = nn.MSELoss(reduction='sum')
         sig = nn.Sigmoid()
         step = start_step
         for img, act, gnd in dataloader:
             model.zero_grad()
             img, act, gnd = img.to(self.device), act.to(self.device), gnd.to(self.device) 
-            positions = self.calculate_position(act)
+            # positions = self.calculate_position(act)
             with torch.set_grad_enabled(train):
-                logits, position_est = model(img,act)
-                # logits = model(img,act)
-            # loss = criterion(logits, gnd)
-            loss = criterion(logits, gnd) + pos_criteria(position_est, positions)
+                # logits, position_est = model(img,act)
+                logits = model(img,act)
+            loss = criterion(logits, gnd)
+            # loss = criterion(logits, gnd) + pos_criteria(position_est, positions)
             
             samples = gnd.shape[0]*gnd.shape[1]
             total += samples
@@ -198,15 +198,16 @@ if __name__ == "__main__":
     testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32)
     # print(next(iter(testloader)))
     
-    pretrained = False
+    pretrained = True
     if pretrained:
-        model = torch.load('/home/nathan/HERDR/models/carla05-04-2022--18:14.pth')
+        model_name = "carla01-05-2022--16:41"
+        model = torch.load(f'/home/nathan/HERDR/models/{model_name}.pth')
         opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
         # log_time = '03-04-2022--10:16'
-        log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
+        log_time = datetime.now().strftime("%d-%m-%Y--%H:%M") + "--from" +model_name[-5:]
         writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
     else:
-        model = HERDR_Pos(Horizon=HRZ)
+        model = HERDR(Horizon=HRZ)
         opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
         log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
         writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')

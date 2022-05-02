@@ -42,7 +42,7 @@ from Herdr_agent import Herdragent
 from Ped_agent import Pedagent
 from actionplanner import HERDRPlan
 from Carla_Trainer import carla_hdf5dataclass
-from metrics_utils import plot_action_cam_view, plot_actions, plot_trajectory, count_data_ratio
+from metrics_utils import plot_action_cam_view, plot_actions, plot_trajectory, add2pickle
 
 def location2tensor(location):
     ls = [location.x, location.y, location.z]
@@ -69,6 +69,7 @@ class HERDRenv():
     # ped_distance_hist = []
     ped_space_count = 0
     SPL_hist = []
+    dist2peds_list = []
     control_freq = 5 # Hz
     plot_hist_front = Queue()
     plot_hist_top = Queue()
@@ -156,7 +157,12 @@ class HERDRenv():
         x, y = np_pos_hist[:,0], np_pos_hist[:,1]
         n = len(x)
         lv = [np.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2) for i in range(1, n)]
-        L = sum(lv)
+        # L = sum(lv)
+        L = 0
+        for item in lv:
+            if item >= 1.0:
+                continue
+            L += item
         return L
 
     def dist2peds(self,agent):
@@ -169,7 +175,8 @@ class HERDRenv():
         min_dist = dist_list.min()
         avg_dist = dist_list.mean()
         max_dist = dist_list.max()
-        return min_dist
+        # return min_dist
+        self.dist2peds_list.append(min_dist)
     
     def calc_SPL(self):
         sum_var = 0
@@ -185,7 +192,7 @@ class HERDRenv():
         cmap = mpl.cm.YlOrRd
         norm = mpl.colors.Normalize(vmin=0, vmax=1)
         cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
-        fps = 5
+        fps = 8
         self.writer = animation.FFMpegWriter(fps=fps)
         self.writer.setup(fig, f'/home/nathan/HERDR/Carla_Results/{log_name}_actions_cam_view.mp4')
         self.top_writer = animation.FFMpegWriter(fps=fps)
@@ -194,7 +201,7 @@ class HERDRenv():
     def get_recordings(self, agent):
         self.plot_hist_front.put([location2tensor(agent.vehicle.get_location()), agent.frame.permute(1,2,0), agent.event, agent.state, agent.planner.mean])
         td_cam_pos = agent.vehicle.get_location()
-        topdown_camera_transform = carla.Transform(carla.Location(x=td_cam_pos.x, y=td_cam_pos.y, z=15), carla.Rotation(pitch=-90))
+        topdown_camera_transform = carla.Transform(carla.Location(x=td_cam_pos.x, y=td_cam_pos.y, z=10), carla.Rotation(pitch=-90))
         agent.tdcam.set_transform(topdown_camera_transform)
         self.plot_hist_top.put([agent.state, agent.event, location2tensor(topdown_camera_transform.location).numpy(), agent.GOAL[0,0,:], agent.topview])
         return
@@ -244,6 +251,7 @@ class HERDRenv():
         self.world.tick()
         print('Done.')
         self.actor_list.clear()
+        self.orca_actor_list.clear()
         self.controller_list.clear()
         self.world.tick()
         self.new_settings.synchronous_mode = False
@@ -263,26 +271,27 @@ class HERDRenv():
         loc = np.random.choice(np.arange(0,self.spawn_locations.shape[0]-1))
         return carla.Transform(carla.Location(x=float(self.spawn_locations[loc,0]), y=float(self.spawn_locations[loc,1]), z=0.177637), carla.Rotation(yaw=rot))
 
-    def get_spawn_ORCA(self, side=0):
+    def get_spawn_ORCA(self, side=0, num_spots=20):
         if side == 1:
             x = self.spawn_locations[:,0].max()
-            y = np.random.choice(np.linspace(self.spawn_locations[:,1].max(),self.spawn_locations[:,1].min(),20))
+            y = np.random.choice(np.linspace(self.spawn_locations[:,1].max(),self.spawn_locations[:,1].min(),num_spots))
             return carla.Transform(carla.Location(x=float(x), y=float(y), z=0.177637), carla.Rotation(yaw=180))
         x = self.spawn_locations[:,0].min()
-        y = np.random.choice(np.linspace(self.spawn_locations[:,1].max(),self.spawn_locations[:,1].min(),20))
+        y = np.random.choice(np.linspace(self.spawn_locations[:,1].max(),self.spawn_locations[:,1].min(),num_spots))
         return carla.Transform(carla.Location(x=float(x), y=float(y), z=0.177637), carla.Rotation(yaw=0))
 
-    def pop_peds_ORCA(self, num_peds=10):
-        self.load_spawns(f'/home/nathan/HERDR/spawn_locations_Test_Orca.txt')
+    def pop_peds_ORCA(self, num_peds):
+        self.load_spawns(f'/home/nathan/HERDR/spawn_locations_Test_Orca2.txt')
         side1_list = []
         side2_list = []
+        num_spots = 30
         for i in range(num_peds):
             side = 2
             if i < num_peds/2:
                 side = 1
-                side1_list.append(self.get_spawn_ORCA(side))
+                side1_list.append(self.get_spawn_ORCA(side, num_spots))
             else:
-                side2_list.append(self.get_spawn_ORCA(side))
+                side2_list.append(self.get_spawn_ORCA(side, num_spots))
         side1_list_index = np.arange(len(side1_list))
         np.random.shuffle(side1_list_index)
         side2_list_index = np.arange(len(side2_list))
@@ -310,8 +319,8 @@ class HERDRenv():
                 goal_location = side2_list[next(s2_end)].location
             else:
                 goal_location = side1_list[next(s1_end)].location
+            # print(f'Current location is: {trans.location} Goal location is: {goal_location}')
             self.orca_actor_list.append(ORCAAgent(walker_actor, goal_location))
-            print(f'Current location is: {trans.location} Goal location is: {goal_location}')
             
 
 def main():
@@ -586,62 +595,75 @@ def test_ped():
 def check_spawn_points():
     client = carla.Client('localhost', 2000)
     world = client.get_world()
-    preset_list = dir(carla.WeatherParameters)[6]
-    dict_WP = carla.WeatherParameters.__dict__
-    world.set_weather(dict_WP[preset_list])
+    # preset_list = dir(carla.WeatherParameters)[6]
+    # dict_WP = carla.WeatherParameters.__dict__
+    # world.set_weather(dict_WP[preset_list])
     blueprint_library = world.get_blueprint_library()
     omafiets = blueprint_library.filter('omafiets')[0]
-    transform = carla.Transform(carla.Location(x=20, y=-85, z=0.177637))
+    # transform = carla.Transform(carla.Location(x=114, y=-65, z=0.177637))
     vehicle = None
     start_time = time.time()
     actor_list = []
     # sensor_list = []
-    try:
-        while vehicle is None:
-            vehicle = world.try_spawn_actor(omafiets, transform)
-            # time.sleep(0.3)
-            if (time.time()- start_time) > 10:
-                raise customerror
-        actor_list.append(vehicle)
+    debug = world.debug
+    x, y, z = 93., -13., 0.
+    arrow = carla.Location(x=x, y=y, z=z)
+    arrow_top = carla.Location(x=x, y=y, z=z+10)
+    debug.draw_arrow(arrow, arrow_top, life_time=30.)
+    
+    # try:
+    #     while vehicle is None:
+    #         vehicle = world.try_spawn_actor(omafiets, transform)
+    #         # time.sleep(0.3)
+    #         if (time.time()- start_time) > 10:
+    #             raise customerror
+    #     actor_list.append(vehicle)
             
-        time.sleep(15)
-    finally:
-        client.apply_batch([carla.command.DestroyActor(x.id) for x in actor_list])
-        print('Destroying Agent')
+    #     time.sleep(15)
+    # finally:
+    #     client.apply_batch([carla.command.DestroyActor(x.id) for x in actor_list])
+    #     print('Destroying Agent')
+    pass
 
 
 def ORCA_Test():
     client = carla.Client('localhost', 2000)
     world = client.get_world()
     env = HERDRenv()
-    controller_bp = env.blueprint_library.find('controller.ai.walker')
-    # debug = world.debug
-    # debug.draw_arrow(carla.Location(x=4., y=-110., z=0.), carla.Location(x=4., y=-110., z=10.), life_time=10.)
-    fountain = world.try_spawn_actor(controller_bp, carla.Transform(location=carla.Location(x=4., y=-98., z=0.)))
-    env.actor_list.append(fountain)
-    env.orca_actor_list.append(ORCAAgent(fountain,carla.Location(x=4., y=-98., z=0.),radius=6., max_speed=0.))
+    env.world.tick()
+    # controller_bp = env.blueprint_library.find('controller.ai.walker')
+    # fountain = world.try_spawn_actor(controller_bp, carla.Transform(location=carla.Location(x=4., y=-98., z=0.)))
+    # env.actor_list.append(fountain)
+    # env.orca_actor_list.append(ORCAAgent(fountain,carla.Location(x=4., y=-98., z=0.),radius=6., max_speed=0.))
     log_time = datetime.now().strftime("%d-%m--%H-%M")
     env.set_recordings(log_time)
     try:
-        env.load_spawns(f'/home/nathan/HERDR/spawn_locations_Test_Orca.txt')
-        env.pop_peds_ORCA(16)
+        env.pop_peds_ORCA(30)
         tau = 2
         dt = 1/5
-        agent_spawn = carla.Transform(carla.Location(x=20, y=-109, z=0.177637), rotation=carla.Rotation(yaw=180.))
-        agent_spawn.location.y = np.random.choice(np.linspace(-110,-95,20))
-        agent_goal = carla.Transform(carla.Location(x=-12, y=-100, z=0.177637))
+        agent_spawn = carla.Transform(carla.Location(x=float(env.spawn_locations[:,0].min()), y=-109, z=0.177637), rotation=carla.Rotation(yaw=0.))
+        agent_spawn.location.y = np.random.choice(np.linspace(env.spawn_locations[:,1].min(),env.spawn_locations[:,1].max(),20))
+        agent_goal = carla.Transform(carla.Location(x=float(env.spawn_locations[:,0].max()), y=np.random.choice(np.linspace(env.spawn_locations[:,1].min(),env.spawn_locations[:,1].max(),20)), z=0.177637))
+        # debug = world.debug
+        # x, y, z = agent_goal.location.x, agent_goal.location.y, 0.
+        # arrow = carla.Location(x=x, y=y, z=z)
+        # arrow_top = carla.Location(x=x, y=y, z=z+10)
+        # debug.draw_arrow(arrow, arrow_top, thickness=1.5, life_time=15.)
+        
         start_time = time.time()
+        env.enable_settings()
         model_name = 'carla23-04-2022--14:57--from09:34' #'carla23-04-2022--14:57--from09:34'
         agent = Herdragent(model_name=f'{model_name}.pth')
         agent.reset(agent_spawn,agent_goal,True)
         env.actor_list.append(agent.vehicle)
-        env.orca_actor_list.append(ORCAAgent(agent.vehicle,agent_goal.location,radius=0.5, max_speed=1.5))
-        env.set_weather()
-        env.enable_settings()
+        env.orca_actor_list.append(ORCAAgent(agent.vehicle,agent_goal.location,radius=0.5, max_speed=0.0))
+        crashes = 0
+        # env.set_weather()
         job = Process(target=env.background_save, args=(env.plot_hist_front,env.plot_hist_top,), daemon=True)
         job.start()
         while (time.time()-start_time) < 60:
-            update_orcas(env, tau, dt)
+            if (time.time()-start_time) > 3:
+                update_orcas(env, tau, dt)
             agent.step()
             env.get_recordings(agent)
             env.world.tick()
@@ -656,22 +678,28 @@ def ORCA_Test():
                 agent.cleanup()
                 agent.reset(agent_spawn,agent_goal,True)
                 env.actor_list[-1] = agent.vehicle
-                env.orca_actor_list[-1] = ORCAAgent(agent.vehicle,agent_goal.location,radius=0.5, max_speed=1.5)
+                env.orca_actor_list[-1] = ORCAAgent(agent.vehicle,agent_goal.location,radius=0.5, max_speed=0)
+                crashes += 1
             if agent.done == True:
                 break
-
+    
     finally:
+        del start_time
         agent.done = True
         env.plot_hist_front.put('done')
-        job.join()
-        job.close()
-        env.top_writer.finish()
-        env.writer.finish()
+        data = {'Ped_freq': env.ped_space_count, 'Path_length': env.pathlength(agent.pos_hist), 'Min_Dist': np.asarray(env.dist2peds_list).mean(), 'Collisions': crashes}
+        agent.cleanup()
+        try:
+            job.join()
+            job.close()
+        finally:
         # plot_trajectory(np.asarray(env.pos_hist), torch.ones((len(env.pos_hist))), agent.GOAL[0,0,:], collision=len(agent.collision_hist), traj_length=env.pathlength(agent.pos_hist))
         # plt.savefig(f'/home/nathan/HERDR/Carla_Results/{log_time}_trajectory.png')
         # plt.close('all')
-        env.cleanup()
-        agent.cleanup()
+            env.top_writer.finish()
+            env.writer.finish()
+            env.cleanup()
+            return data
 
 
 def update_orcas(env, tau, dt):
@@ -701,4 +729,7 @@ if __name__ == '__main__':
     # test()
     # test_ped()
     # check_spawn_points()
-    ORCA_Test()
+    # for i in range(0,40):
+    data = ORCA_Test()
+    #     file_name = f'/home/nathan/HERDR/Carla_Results/HERDR_ORCA_Test_Data.pkl'
+    #     add2pickle(file_name, data)

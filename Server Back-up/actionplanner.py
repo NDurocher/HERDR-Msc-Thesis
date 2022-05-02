@@ -7,15 +7,15 @@ class HERDRPlan:
         # Set default starting value for actions
         # [Velocity (m/s), Steering angle (rad)]
         self.horizon = Horizon
-        self.vel_max = vel_init*1.5
         self.vel_init = vel_init
         self.steer_init = steer_init
+        self.vel_max = vel_init*1.0
         vel_mean = vel_init*torch.ones(self.horizon)
         steer_mean = steer_init*torch.zeros(self.horizon)
         self.mean = torch.stack((vel_mean, steer_mean)).double()
         # set guess for variance
-        vel_cov = 1.0*torch.ones(self.horizon, 1)
-        steer_cov = 1.*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
+        vel_cov = 0.5*torch.ones(self.horizon, 1)
+        steer_cov = 1.5*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
         self.cov = torch.stack((vel_cov, steer_cov)).transpose(2, 0)
         # Define parameter to adjust for high weight updates
         self.gamma = torch.tensor(gamma)
@@ -31,7 +31,8 @@ class HERDRPlan:
                 # continue
                 temp = self.beta * (self.mean[:, i+1] + noise[:, i, :]) + (1-self.beta) * self.mean[:, i]
             elif i == (self.horizon-1):
-                temp = self.beta * (self.mean[:, -1] + noise[:, i, :]) + (1 - self.beta) * sequence[-1]
+                action_init = torch.tensor([self.vel_init,self.steer_init])
+                temp = self.beta * (action_init + noise[:, i, :]) + (1 - self.beta) * sequence[-1]
             else:
                 temp = self.beta * (self.mean[:, i+1] + noise[:, i, :]) + (1-self.beta) * sequence[-1]
             sequence.append(temp)
@@ -47,13 +48,13 @@ class HERDRPlan:
         sequence = sequence.float()
         return sequence
 
-    def step(self):
-        action_init = torch.tensor([self.vel_init,self.steer_init])[:,None]
-        self.mean = torch.hstack((self.mean[:,1:], action_init))
+    # def step(self):
+    #     action_init = torch.tensor([self.vel_init,self.steer_init])[:,None]
+    #     self.mean = torch.hstack((self.mean[:,1:], action_init))
 
     def update_new(self, reward, sequence):
         # reward is a [batch x horizon x 1] tensor, sequence is a batch x horizon x 2 tensor
-        reward = reward * torch.linspace(0.8, 1, self.horizon)
+        reward = reward * torch.linspace(1, 0.8, self.horizon)
         reward = reward.sum(dim=1)
         reward = reward - reward.max()
         # reward = (reward - reward.min())/(reward.max() - reward.min()) - 1
@@ -77,7 +78,4 @@ if __name__ == "__main__":
     # samp = samp.unsqueeze(0)
     # test.gamma = test.gamma.to(device)
     test.update_new(R, samp)
-    print(test.mean)
-    test.step()
-    print(test.mean)
     # print(test.mean.shape)

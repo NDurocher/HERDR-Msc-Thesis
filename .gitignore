@@ -3,7 +3,7 @@ Test/**/*.zip
 Test/**/*.png
 Test/**/*.jpg
 src/**/*.jpg
-*.pkl
+Test/**/*.pkl
 Test/**/*.pth
 herdr/
 Test/**/*.onnx
