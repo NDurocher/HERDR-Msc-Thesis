@@ -24,9 +24,7 @@ class HERDR(nn.Module):
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
             nn.ReLU(),
             nn.Flatten(),
-            nn.LazyLinear(256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
+            
         )
         self.action_pre = nn.Sequential(
             # nn.LayerNorm([20, 2]),
@@ -36,6 +34,10 @@ class HERDR(nn.Module):
             nn.Linear(16, 16)
         )
         self.init_hidden = nn.Sequential(
+            nn.LazyLinear(256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
             nn.Linear(128, 128),
             # nn.LazyBatchNorm1d(),
             nn.ReLU(),
@@ -60,6 +62,7 @@ class HERDR(nn.Module):
     def forward(self, img, action):
         obs = self.obs_pre(self.normalize(img))
         # Change obs to 2*rnndim encoding, this is then split into Hx and Cx
+        print(obs.shape)
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
         # # Hx = Hx.repeat(1,1,1)

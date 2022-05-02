@@ -21,30 +21,25 @@ import shutil
 
 def plot_trajectory(robot_traj, line_values, goal, traj_length=-1, collision=-1):
     plt.clf()
+    plt.figure(figsize=(16, 16), dpi=80)
     points = np.array([robot_traj[:, 1], robot_traj[:, 0]]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    lc = LineCollection(segments, cmap=plt.get_cmap('YlOrRd'), norm=plt.Normalize(0, line_values.max()))
+    lc = LineCollection(segments, cmap=plt.get_cmap('cool'), norm=plt.Normalize(0, line_values.max()))
     lc.set_array(line_values)
     lc.set_linewidth(3)
-    plt.figure(1)
     plt.gca().add_collection(lc)
-    # img = plt.imread("./Topview.jpg")  #/Users/NathanDurocher/Documents/GitHub/HERDR/
-    # plt.imshow(img, extent=[-10, 10, -10, 10])
-    # plt.autoscale(False)
-    # plt.scatter(goal[0, 0, 1], goal[0, 0, 0], s=200, c='green', marker="o")
-    plt.scatter(goal[1], goal[0], s=200, c='green', marker="o")
-    # try:
-    #     for i, ped in enumerate(ped_traj):
-    #         if i == 0:
-    #             plt.scatter(ped[:, 2], ped[:, 0], s=1., c='cyan', marker="o")
-    #         else:
-    #             plt.scatter(ped[:, 2], ped[:, 0], s=1., c='blue', marker="o")
-    # except:
-    #     pass
-    # plt.xlim(-10, 10)
-    # plt.ylim(-10, 10)
-    plt.axis('equal')
-    # plt.colorbar(mappable=lc, label='%s from Peds (m)' % label)
+    img = plt.imread("/home/nathan/HERDR/tsne/City_top_down.png")  #/Users/NathanDurocher/Documents/GitHub/HERDR/
+    plt.imshow(img, extent=[-150, 150, -150, 150])
+    plt.autoscale(False)
+    plt.scatter(goal[1], goal[0], s=200, c='red', marker="o")
+    start = robot_traj[0]
+    plt.scatter(start[1], start[0], s=100, c='green', marker="o")
+    # plt.axis('equal')
+    robot_traj_array = np.asarray(robot_traj)
+    xmin, xmax = max([min([robot_traj_array[:,1].min() -50, goal[1]-50]),-200]), min([max([robot_traj_array[:,1].max()+50,goal[1]+50]),200])
+    ymin, ymax = max([min([robot_traj_array[:,0].min() -50, goal[0]-50]),-200]), min([max([robot_traj_array[:,0].max()+50,goal[0]+50]),200])
+    plt.xlim([xmin, xmax])
+    plt.ylim([ymin, ymax])
     plt.xlabel('Y-Position (m)')
     plt.ylabel('X-Position (m)')
     plt.title('A Trajectory')
@@ -101,28 +96,28 @@ def plot_action_cam_view(position, frame, event_probs, state, planner_mean=None)
     plt.imshow(frame.int().numpy(), extent=[-1.5, 1.5, 0, 2])
     plt.autoscale(False)
     plt.title('Probabilities of Unsafe Position')
-    if type(planner_mean) == type(None):
-        return
-    planner_mean = planner_mean.numpy().T
-    ''' Display optimal path from planner mean '''
-    opt_state = np.zeros((planner_mean.shape[0],3))
-    dt = 1/5
-    wb = 0.7
-    ''' opt_state := [X, Y, phi] '''
-    for i in range(0,len(planner_mean) - 1):
-        opt_state[i + 1, 0] = opt_state[i, 0] + dt * np.cos(
-            opt_state[i, 2]) * planner_mean[i, 0]
-        opt_state[i + 1, 1] = opt_state[i, 1] + dt * np.sin(
-            opt_state[i, 2]) * planner_mean[i, 0]
-        opt_state[i + 1, 2] = opt_state[i, 2] - dt * planner_mean[i, 1] * planner_mean[i, 0] / wb
-    opt_state[:, 1] = opt_state[:, 1]/abs(opt_state[:, 1]).max()*1.1
-    opt_state[:, 0] = opt_state[:, 0]/abs(opt_state[:, 0]).max()*0.7 
-    points = np.expand_dims(np.array([opt_state[:, 1], opt_state[:, 0]]).T, 1)
-    segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    lc = LineCollection(segments, cmap=plt.get_cmap('YlGn'), norm=plt.Normalize(0, 1))
-    lc.set_array(np.ones((10)))
-    lc.set_linewidth(3)
-    plt.gca().add_collection(lc)
+    # if type(planner_mean) == type(None):
+    #     return
+    # planner_mean = planner_mean.numpy().T
+    # ''' Display optimal path from planner mean '''
+    # opt_state = np.zeros((planner_mean.shape[0],3))
+    # dt = 1/5
+    # wb = 0.7
+    # ''' opt_state := [X, Y, phi] '''
+    # for i in range(0,len(planner_mean) - 1):
+    #     opt_state[i + 1, 0] = opt_state[i, 0] + dt * np.cos(
+    #         opt_state[i, 2]) * planner_mean[i, 0]
+    #     opt_state[i + 1, 1] = opt_state[i, 1] + dt * np.sin(
+    #         opt_state[i, 2]) * planner_mean[i, 0]
+    #     opt_state[i + 1, 2] = opt_state[i, 2] - dt * planner_mean[i, 1] * planner_mean[i, 0] / wb
+    # opt_state[:, 1] = opt_state[:, 1]/abs(opt_state[:, 1]).max()*1.1
+    # opt_state[:, 0] = opt_state[:, 0]/abs(opt_state[:, 0]).max()*0.7 
+    # points = np.expand_dims(np.array([opt_state[:, 1], opt_state[:, 0]]).T, 1)
+    # segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    # lc = LineCollection(segments, cmap=plt.get_cmap('YlGn'), norm=plt.Normalize(0, 1))
+    # lc.set_array(np.ones((10)))
+    # lc.set_linewidth(3)
+    # plt.gca().add_collection(lc)
 
 
 
@@ -131,6 +126,7 @@ def count_data_ratio(loader):
     positive = sum([torch.count_nonzero(gnd) for im, act, gnd in loader])
     ratio = total/positive
     print(f'Total Samples: {total}, # Positive: {positive} Ratio of total:positive {ratio:.4f}')
+    return ratio
 
     
 def moveimages(h5file_path, recursive=False):
@@ -177,9 +173,12 @@ def loadfromfile(file_path):
 if __name__ == "__main__":
     dir_name = Path(Path.cwd())
     dir_name = str(dir_name) + '/all_carla_hdf5s/'
-    dataset = carla_hdf5dataclass(dir_name, 10, '/home/nathan/HERDR/carla_images/', load_all_files=True)
+    dataset = carla_hdf5dataclass(dir_name, 10, '/home/nathan/HERDR/carla_images', counting=True, load_all_files=True, recursive=True)
     print(len(dataset))
     test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
     testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=1)
     count_data_ratio(testloader)
+    dataset.counting=False
+    # testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=1)
+    # print(next(iter(testloader)))
     # moveimages(dir_name,recursive=True)

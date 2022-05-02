@@ -65,6 +65,9 @@ def halfplane_optimize(lines, optimal_point):
         # far with the current one.
         prev_lines = itertools.islice(lines, i)
         left_dist, right_dist = line_halfplane_intersect(line, prev_lines)
+        if (left_dist == -1) & (right_dist == -1):
+            point = [0,0]
+            return point
 
         # Now project the optimal point onto the line segment defined by the
         # the above bounds. This gives us our new best point.
@@ -118,7 +121,8 @@ def line_halfplane_intersect(line, other_lines):
             if num < 0:
                 # The intersection of the half-planes is empty; there is no
                 # solution.
-                raise InfeasibleError
+                return -1, -1
+                # raise InfeasibleError
             else:
                 # The *half-planes* intersect, but their lines don't cross, so
                 # ignore.
@@ -136,6 +140,7 @@ def line_halfplane_intersect(line, other_lines):
 
         if left_dist > right_dist:
             # The interval is inconsistent, so the feasible region is empty.
+            return -1, -1
             raise InfeasibleError
     return left_dist, right_dist
 

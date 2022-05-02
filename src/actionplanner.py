@@ -11,7 +11,7 @@ class HERDRPlan:
         steer_mean = steer_init*torch.zeros(self.horizon)
         self.mean = torch.stack((vel_mean, steer_mean)).double()
         # set guess for variance
-        vel_cov = 0.1*torch.ones(self.horizon, 1)
+        vel_cov = 0.0*torch.ones(self.horizon, 1)
         steer_cov = 1.0*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
         self.cov = torch.stack((vel_cov, steer_cov)).transpose(2, 0)
         # Define parameter to adjust for high weight updates
@@ -47,10 +47,11 @@ class HERDRPlan:
     def update_new(self, reward, sequence):
         # reward is a [batch x horizon x 1] tensor, sequence is a batch x horizon x 2 tensor
         reward = reward * torch.linspace(1, 0.8, self.horizon)
-        reward = reward.sum(dim=1)
+        reward = -reward.sum(dim=1)
         reward = (reward - reward.min())/(reward.max() - reward.min()) - 1
         mean = torch.zeros(self.horizon, 2)
-        s_R = torch.zeros(self.horizon, 1)
+        # s_R = torch.zeros(self.horizon, 1)
+        s_R = 0
         for r, seq in zip(reward, sequence):
             mean += torch.exp(self.gamma * r) * seq
             s_R += torch.exp(self.gamma * r)
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     # samp1 = test.sample_new()
     # samp = torch.stack((samp, samp1), 0)
     print(samp.shape)
-    # R = torch.tensor(np.random.rand(3, 10))
+    R = torch.tensor(np.random.rand(3, 10))
     # # samp = samp.unsqueeze(0)
-    # test.update_new(R, samp)
+    test.update_new(R, samp)
     # print(test.mean.shape)

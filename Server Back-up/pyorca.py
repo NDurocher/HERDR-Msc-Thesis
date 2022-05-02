@@ -72,6 +72,8 @@ class ORCAAgent(object):
     def getPrefVelocity(self):
         heading = self.goal-self.position
         mag = numpy.linalg.norm(heading)
+        if mag == 0:
+            mag = 1e-10
         dir = heading/mag
 
         self.pref_velocity = dir*self.max_speed

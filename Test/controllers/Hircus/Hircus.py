@@ -105,7 +105,8 @@ class Hircus (Supervisor):
             if self.accel:
                 return self.accel_infer
             else:
-                self.net = torch.load('Herdr_Best_Feb22.pth', map_location=torch.device('cpu'))
+                # self.net = torch.load('Herdr_Best_Feb22.pth', map_location=torch.device('cpu'))
+                self.net = HERDR(Horizon=HRZ)
                 self.net.model_out = nn.Sequential(
                     self.net.model_out,
                     nn.Sigmoid()
@@ -372,7 +373,7 @@ DEVICE_SAMPLE_TIME = int(WEBOTS_STEP_TIME)
 SCALE = 1000
 GNSS_RATE = 1
 HRZ = 10
-BATCH = 40
+BATCH = 400
 if options.goal is None:
     GOAL = torch.tensor([-3, uniform(-3, 3)]).repeat(BATCH, HRZ, 1)
 else:

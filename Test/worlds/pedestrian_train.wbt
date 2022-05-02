@@ -33,7 +33,6 @@ DEF Logger Robot {
       height 500
     }
   ]
-  controller "Logger"
   customData "1.8349835872650146"
   supervisor TRUE
   synchronization FALSE
@@ -206,8 +205,8 @@ DEF Hircus Robot {
       rotation 0.577349935856137 -0.5773509358560258 -0.577349935856137 2.0944
       name "CAM"
       fieldOfView 2.618
-      width 1280
-      height 720
+      width 192
+      height 96
       recognition Recognition {
         maxObjects 3
       }
@@ -291,7 +290,7 @@ DEF Hircus Robot {
       ]
       endPoint Solid {
         translation 0.19 0 0
-        rotation 0 0.9999999999999999 0 0.02367259175396479
+        rotation 0 0.9999999999999999 0 0.023672591753964793
         children [
           Shape {
             appearance PBRAppearance {
@@ -558,7 +557,7 @@ DEF Hircus Robot {
             ]
             endPoint Solid {
               translation -0.19 0 0
-              rotation 0 0 -1 1.5707951153489708
+              rotation 0 0 -1 1.5707951153489712
               children [
                 Gyro {
                   rotation 0.5773502691896257 0.5773502691896257 0.5773502691896257 2.09394
@@ -590,7 +589,7 @@ DEF Hircus Robot {
                     }
                   ]
                   endPoint Solid {
-                    rotation 1 0 0 8.413549788888221e-07
+                    rotation 1 0 0 8.41354978888822e-07
                     children [
                       Transform {
                         rotation 1 0 0 1.570795
