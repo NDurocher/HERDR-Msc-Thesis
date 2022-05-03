@@ -11,8 +11,10 @@ from torchvision.transforms.functional import resize, hflip
 from tqdm.notebook import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import SubsetRandomSampler, RandomSampler 
+from torchvision import transforms
+from PIL import Image
 import h5py
-from Badgrnet import HERDR, HERDR_Pos
+from Badgrnet import HERDR, HERDR_Resnet
 from datetime import datetime
 # import deepspeed
 
@@ -29,6 +31,12 @@ class carla_hdf5dataclass(data.Dataset):
         self.counting = counting
         self.transform = transform
         self.image_fp = imagefile_path
+        self.preprocess = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
         # torch.manual_seed(12)
         if torch.cuda.is_available():
             self.device = torch.device('cuda:0')
@@ -87,6 +95,8 @@ class carla_hdf5dataclass(data.Dataset):
             # path = glob.glob(f'{self.image_fp}/**/{img_name}.jpg', recursive=True)[0]
             # img = resize(read_image(f'{path}'),[96,192]).float()
             img = read_image(f'{path}').float()
+            img = Image.open(f'{path}')
+            img = self.preprocess(img)
             # img = read_image(f'{self.image_fp}/{img_name}.jpg').float()
         
         ls = np.concatenate((self.data[i:end_i, 0:3], self.data[i:end_i, 4, None]), axis=1).copy()
@@ -195,26 +205,26 @@ if __name__ == "__main__":
     HRZ = 10
     dataset = carla_hdf5dataclass('/home/nathan/HERDR/all_carla_hdf5s/', HRZ, '/home/nathan/HERDR/carla_images/', recursive=True, load_all_files=True)
     test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
-    testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32)
+    testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32, num_workers=3)
     # print(next(iter(testloader)))
     
     pretrained = True
     if pretrained:
-        model_name = "carla01-05-2022--16:41"
+        model_name = "carla03-05-2022--11:08"
         model = torch.load(f'/home/nathan/HERDR/models/{model_name}.pth')
         opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
         # log_time = '03-04-2022--10:16'
-        log_time = datetime.now().strftime("%d-%m-%Y--%H:%M") + "--from" +model_name[-5:]
+        log_time = datetime.now().strftime("%d-%m-%Y--%H:%M") + model_name[-5:] #+ "--from17:38"
         writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
     else:
-        model = HERDR(Horizon=HRZ)
+        model = HERDR_Resnet(Horizon=HRZ)
         opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
         log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
-        writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
+        writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}-Resnet18')
     
     max_loss = 10000
     end_step = 0
-    for epoch in range(0, 50):
+    for epoch in range(0, 9):
         loss, pos_accuracy, accuracy, end_step = dataset.one_epoch(model,testloader, start_step=end_step, writer=writer, opt=opt)
         print(f"Epoch {epoch+1} - Loss: {loss:.4f}, +Accuracy: {pos_accuracy:.4f}, TAccuracy: {accuracy:.4f}, # steps: {end_step}")
         if loss < max_loss:

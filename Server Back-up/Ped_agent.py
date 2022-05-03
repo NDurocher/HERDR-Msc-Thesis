@@ -279,14 +279,14 @@ class Pedagent():
         dir_name = str(dir_name) + '/Ped_results'
         fig = plt.figure(figsize=(16, 9), dpi=80)
         plt.plot(self.vel_hist)
-        plt.xlabel('Velocity (m/s)')
-        plt.ylabel('Time (sec)')
+        plt.xlabel('Time (step  #)')
+        plt.ylabel('Velocity (m/s)')
         plt.title(f'CARLA Pedestrain Velocity through Time')
         plt.savefig(f"{dir_name}/CARLA_agent_velocity_time.jpg")
         # plt.clf()
         # plt.plot(self.head_hist)
-        # plt.xlabel('Heading (°)')
-        # plt.ylabel('Time (sec)')
+        # plt.xlabel('Time (step  #)')
+        # plt.ylabel('Heading (°)')
         # plt.title(f'CARLA Pedestrain Heading through Time')
         # plt.savefig(f"{dir_name}/CARLA_agent_heading_time.jpg")
 

@@ -37,7 +37,7 @@ from multiprocessing import Process, Queue
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from Badgrnet import HERDR
+from Badgrnet import HERDR, HERDR_Resnet
 from Herdr_agent import Herdragent
 from Ped_agent import Pedagent
 from actionplanner import HERDRPlan
@@ -61,35 +61,30 @@ def EucDistance(x,y):
     return dist
 
 class HERDRenv():
-    actor_list = []
-    controller_list = []
-    # sensor_list = []
-    collision_hist = []
-    pos_hist = []
-    # ped_distance_hist = []
-    ped_space_count = 0
     SPL_hist = []
-    dist2peds_list = []
     control_freq = 5 # Hz
-    plot_hist_front = Queue()
-    plot_hist_top = Queue()
     run = 0
-    orca_actor_list = []
-    # weatherparas = ["ClearNoon", "CloudyNoon", "WetNoon", "WetCloudyNoon", "SoftRainNoon", "MidRainyNoon", "HardRainNoon", 
-    #               "ClearSunset", "CloudySunset", "WetSunset", "WetCloudySunset", "SoftRainSunset", "MidRainSunset", "HardRainSunset"]
-
-    H5File_name = None
+    client = carla.Client('localhost', 2000)
+    client.set_timeout(8.0)
+    world = client.get_world()
+    new_settings = world.get_settings()
+    new_settings.synchronous_mode = True
+    new_settings.max_substeps = 16
+    new_settings.max_substep_delta_time = 0.0125
+    new_settings.fixed_delta_seconds = 1/control_freq
+    blueprint_library = world.get_blueprint_library()
+    # preset_list = [item for item in dir(carla.WeatherParameters)[0:22] if 'Night' not in item]
+    # dict_WP = carla.WeatherParameters.__dict__
 
     def __init__(self, training=False):
-        self.client = carla.Client('localhost', 2000)
-        self.client.set_timeout(8.0)
-        self.world = self.client.get_world()
-        self.new_settings = self.world.get_settings()
-        self.new_settings.synchronous_mode = True
-        self.new_settings.max_substeps = 16
-        self.new_settings.max_substep_delta_time = 0.0125
-        self.new_settings.fixed_delta_seconds = 1/self.control_freq
-        self.blueprint_library = self.world.get_blueprint_library()
+        self.actor_list = []
+        self.controller_list = []
+        self.collision_hist = []
+        self.pos_hist = []
+        self.ped_space_count = 0
+        self.dist2peds_list = []
+        self.orca_actor_list = []
+        self.H5File_name = None
     
     def enable_settings(self):
         self.world.apply_settings(self.new_settings) 
@@ -130,27 +125,19 @@ class HERDRenv():
             self.controller_list.append(controller_walker)
         
         # del self.blueprint_library
-        print('Pedestrians Added.')
+        print(f'{len(self.actor_list)}/{num_peds} Pedestrians Added.')
+        return len(self.actor_list)
 
     def set_weather(self):
-        preset_list = [item for item in dir(carla.WeatherParameters)[0:22] if 'Night' not in item]
-        dict_WP = carla.WeatherParameters.__dict__
-        self.world.set_weather(dict_WP[preset_list[random.randint(0,len(preset_list)-1)]])
+        self.world.set_weather(self.dict_WP[self.preset_list[random.randint(0,len(self.preset_list)-1)]])
 
     def reset(self):
-        self.client = carla.Client('localhost', 2000)
-        self.client.set_timeout(8.0)
-        self.world = self.client.get_world()
+        # self.client = carla.Client('localhost', 2000)
+        # self.client.set_timeout(8.0)
+        # self.world = self.client.get_world()
         # self.wmap = self.world.get_map()
-        new_settings = self.world.get_settings()
-        new_settings.synchronous_mode = True
-        new_settings.max_substeps = 16
-        new_settings.max_substep_delta_time = 0.0125
-        new_settings.fixed_delta_seconds = 1/self.control_freq
-        self.world.apply_settings(new_settings) 
-        preset_list = [item for item in dir(carla.WeatherParameters)[0:22] if 'Night' not in item]
-        dict_WP = carla.WeatherParameters.__dict__
-        self.world.set_weather(dict_WP[preset_list[random.randint(0,len(preset_list)-1)]])
+        # self.set_weather()
+        self.world.apply_settings(self.new_settings) 
 
     def pathlength(self, pos_list):
         np_pos_hist = np.asarray(pos_list)
@@ -183,7 +170,7 @@ class HERDRenv():
         for success, length, p2pdist in self.SPL_hist:
             sum_var += success * (p2pdist/np.max([p2pdist,length,1e-9]))
         spl = 1/len(self.SPL_hist)*sum_var
-        print(f'\n&& SPL: {spl:.4f} &&')
+        print(f'\n&& SPL: {spl:.4f} &&\n')
         return spl
        
     def set_recordings(self, log_name):
@@ -194,9 +181,14 @@ class HERDRenv():
         cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='Probability')
         fps = 8
         self.writer = animation.FFMpegWriter(fps=fps)
-        self.writer.setup(fig, f'/home/nathan/HERDR/Carla_Results/{log_name}_actions_cam_view.mp4')
+        p = Path(f'/home/nathan/HERDR/Carla_Results/{log_name[0:5]}')
+        if not p.is_dir():
+            os.mkdir(f'/home/nathan/HERDR/Carla_Results/{log_name[0:5]}')
+        self.writer.setup(fig, f'/home/nathan/HERDR/Carla_Results/{log_name[0:5]}/{log_name[7:]}_actions_cam_view.mp4')
         self.top_writer = animation.FFMpegWriter(fps=fps)
-        self.top_writer.setup(fig, f'/home/nathan/HERDR/Carla_Results/{log_name}_Top_view.mp4')
+        self.top_writer.setup(fig, f'/home/nathan/HERDR/Carla_Results/{log_name[0:5]}/{log_name[7:]}_Top_view.mp4')
+        self.plot_hist_front = Queue()
+        self.plot_hist_top = Queue()
 
     def get_recordings(self, agent):
         self.plot_hist_front.put([location2tensor(agent.vehicle.get_location()), agent.frame.permute(1,2,0), agent.event, agent.state, agent.planner.mean])
@@ -329,7 +321,7 @@ def main():
     torch.set_default_dtype(torch.float32)
     max_loss = 10000
     try:
-        log_time = datetime.now().strftime("%d-%m-%Y--%H-%M")
+        log_time = datetime.now().strftime("%m-%d-%Y--%H-%M")
         # model_start = '07-04-2022--14:41'
         model_start = 'carla22-04-2022--09:48'
         recording_data = log_time
@@ -363,7 +355,7 @@ def main():
                     # env.set_recordings()
                     # job = Process(target=env.background_save, args=(env.plot_hist_front,env.plot_hist_top,), daemon=True)
                     # job.start()
-                    print(f'--- START Run {i+1}/Round {round+1} at: {datetime.now().strftime("%d-%m-%Y--%H:%M:%S")} ---')
+                    print(f'--- START Run {i+1}/Round {round+1} at: {datetime.now().strftime("%m-%d-%Y--%H:%M:%S")} ---')
                     start_time = time.time()
                     save_frame_count = 0
                     while not Herdr.done | (time.time() - start_time >= 300):
@@ -387,7 +379,7 @@ def main():
 
                     Herdr.done = True
                     # env.plot_hist_front.put('done')
-                    print(f'--- DONE Run {i+1}/Round {round+1} at: {datetime.now().strftime("%d-%m-%Y--%H:%M:%S")} ---\n')
+                    print(f'--- DONE Run {i+1}/Round {round+1} at: {datetime.now().strftime("%m-%d-%Y--%H:%M:%S")} ---\n')
                     sim_time = save_frame_count/5
                     print(f'Sim Time est: {int(sim_time)} seconds')
                     # if int(sim_time) == 0:
@@ -475,23 +467,23 @@ def test():
     env = HERDRenv()
     env.reset()
     blk = 1
-    model_name = 'carla23-04-2022--14:57--from09:34'
+    model_name = 'carla23-04-2022--14:57--from09:34'  # carla23-04-2022--14:57--from09:34'
     Herdr = Herdragent(training=False, model_name=f'{model_name}.pth',test_block=blk) # 'carla07-04-2022--14:41.pth'
-    log_time = datetime.now().strftime("%d-%m--%H-%M")
-    log_time = log_time +f'_Block-{blk}-{model_name}'
+    # log_time = datetime.now().strftime("%m-%d--%H-%M")
+    # log_time = log_time +f'_Block-{blk}-{model_name}'
     try:
         # env.reworld()
         # env.reset()
-        env.pop_map_pedestrians(num_peds=75, test_block=blk)
+        num_peds = env.pop_map_pedestrians(num_peds=75, test_block=blk)
         Herdr.reset()
-        env.set_recordings(log_time)
-        job = Process(target=env.background_save, args=(env.plot_hist_front,env.plot_hist_top,), daemon=True)
-        job.start()
+        # env.set_recordings(log_time)
+        # job = Process(target=env.background_save, args=(env.plot_hist_front,env.plot_hist_top,), daemon=True)
+        # job.start()
         start_time = time.time()
         save_frame_count = 0
         while not Herdr.done :
             Herdr.step()
-            env.get_recordings(Herdr)
+            # env.get_recordings(Herdr)
             env.world.tick()
             env.dist2peds(Herdr)
             Herdr.is_safe(env.controller_list)
@@ -508,28 +500,38 @@ def test():
                 if Herdr.GND_hist[-1] == 0:
                     Herdr.GND_hist[-1] = 1
                 break
-            if (time.time() - start_time >= 200):
+            if (time.time() - start_time >= 300):
                 print(f'Timed-out')
-                break
+                break    
         Herdr.done = True
-        env.plot_hist_front.put('done')
-        job.join()
-        job.close()
+        del start_time
+        # env.plot_hist_front.put('done')
+        # job.join()
+        # job.close()
         pl = env.pathlength(Herdr.pos_hist)
         env.SPL_hist.append([Herdr.success, pl, Herdr.p2pdist])
         spl = env.calc_SPL()
-        env.top_writer.finish()
-        env.writer.finish()
-        plot_trajectory(np.asarray(env.pos_hist), torch.ones((len(env.pos_hist))), Herdr.GOAL[0,0,:], collision=len(Herdr.collision_hist), traj_length=env.pathlength(Herdr.pos_hist))
-        plt.savefig(f'/home/nathan/HERDR/Carla_Results/{log_time}_trajectory.png')
-        plt.close('all')
-        Herdr.plot()
+        # env.top_writer.finish()
+        # env.writer.finish()
+        data = {'Times in ped space': env.ped_space_count, 'Path length': pl, 
+        'Avg min dist to ped': np.asarray(env.dist2peds_list).mean(), 'Success': Herdr.success, 
+        'Point2Point Dist': Herdr.p2pdist.item(), 'Agent goal gain': Herdr.goal_gain, 'Agent action gain': Herdr.action_gain,
+        '# of Peds': num_peds}
+        print(data)
+        # p = Path(f'/home/nathan/HERDR/Carla_Results/{log_time[0:5]}')
+        # if not p.is_dir():
+        #     os.mkdir(f'/home/nathan/HERDR/Carla_Results/{log_time[0:5]}')
+        # plot_trajectory(np.asarray(env.pos_hist), torch.ones((len(env.pos_hist))), Herdr.GOAL[0,0,:], collision=len(Herdr.collision_hist), traj_length=env.pathlength(Herdr.pos_hist))
+        # plt.savefig(f'/home/nathan/HERDR/Carla_Results/{log_time[0:5]}/{log_time[7:]}_trajectory.png')
+        # plt.close('all')
+        # Herdr.plot()
     
     finally:
         Herdr.cleanup()
         env.cleanup()
         env.world.tick()
         del env, Herdr    
+        return data
 
 
 def test_ped():
@@ -635,7 +637,7 @@ def ORCA_Test():
     # fountain = world.try_spawn_actor(controller_bp, carla.Transform(location=carla.Location(x=4., y=-98., z=0.)))
     # env.actor_list.append(fountain)
     # env.orca_actor_list.append(ORCAAgent(fountain,carla.Location(x=4., y=-98., z=0.),radius=6., max_speed=0.))
-    log_time = datetime.now().strftime("%d-%m--%H-%M")
+    log_time = datetime.now().strftime("%m-%d--%H-%M")
     env.set_recordings(log_time)
     try:
         env.pop_peds_ORCA(30)
@@ -652,7 +654,7 @@ def ORCA_Test():
         
         start_time = time.time()
         env.enable_settings()
-        model_name = 'carla23-04-2022--14:57--from09:34' #'carla23-04-2022--14:57--from09:34'
+        model_name = 'carla02-05-2022--19:53--from17:38' #'carla23-04-2022--14:57--from09:34'
         agent = Herdragent(model_name=f'{model_name}.pth')
         agent.reset(agent_spawn,agent_goal,True)
         env.actor_list.append(agent.vehicle)
@@ -726,10 +728,11 @@ class customerror(Exception):
 
 if __name__ == '__main__':
     # main()
-    # test()
     # test_ped()
     # check_spawn_points()
-    # for i in range(0,40):
-    data = ORCA_Test()
-    #     file_name = f'/home/nathan/HERDR/Carla_Results/HERDR_ORCA_Test_Data.pkl'
-    #     add2pickle(file_name, data)
+    len_df = 0
+    while len_df < 80:
+    # data = ORCA_Test()
+        data = test()
+        file_name = f'/home/nathan/HERDR/Carla_Results/HERDR_Block_Test_Data.pkl'
+        len_df = add2pickle(file_name, data)

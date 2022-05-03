@@ -29,11 +29,12 @@ def plot_trajectory(robot_traj, line_values, goal, traj_length=-1, collision=-1)
     lc.set_linewidth(3)
     plt.gca().add_collection(lc)
     img = plt.imread("/home/nathan/HERDR/tsne/City_top_down.png")  #/Users/NathanDurocher/Documents/GitHub/HERDR/
-    plt.imshow(img, extent=[-150, 150, -150, 150])
+    size = 185
+    plt.imshow(img, extent=[-size, size, -size, size])
     plt.autoscale(False)
     plt.scatter(goal[1], goal[0], s=200, c='red', marker="o")
     start = robot_traj[0]
-    plt.scatter(start[1], start[0], s=100, c='green', marker="o")
+    plt.scatter(start[1], start[0], s=100, c='cyan', marker="o")
     # plt.axis('equal')
     robot_traj_array = np.asarray(robot_traj)
     xmin, xmax = max([min([robot_traj_array[:,1].min() -50, goal[1]-50]),-200]), min([max([robot_traj_array[:,1].max()+50,goal[1]+50]),200])
@@ -124,10 +125,13 @@ def add2pickle(file_name, run_dict, overwrite=False):
     if os.path.isfile(f'{file_name}') and not overwrite:
         pkl_dataframe = pd.read_pickle(file_name)
         pkl_dataframe = pkl_dataframe.append(dataframe, ignore_index=True)
-        print(len(pkl_dataframe))
         pkl_dataframe.to_pickle(file_name, protocol=4)
+        size = len(pkl_dataframe)
+        print(size)
     else:
         dataframe.to_pickle(file_name, protocol=4)
+        size = 1
+    return size
     
 
 

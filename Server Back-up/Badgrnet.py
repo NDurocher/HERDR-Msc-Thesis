@@ -1,12 +1,14 @@
 #!*python*
 
+from ctypes import resize
 import faulthandler
 from torch import nn
 import torch
 import cv2
-from torchvision import transforms
+from torchvision import transforms,models
 from torchvision.io import read_image
 import pycuda.driver as cuda
+from PIL import Image
 
 class HERDR(nn.Module):
     def __init__(self, Horizon=1, RnnDim=64):
@@ -87,26 +89,33 @@ class HERDR(nn.Module):
         ''' Output shape is (Batch, Horizon, 1)) '''
         return out
 
-class HERDR_Pos(HERDR):
+class HERDR_Resnet(HERDR):
     def __init__(self, Horizon=1, RnnDim=64):
         super().__init__()
         self.horizon = Horizon
         self.rnndim = RnnDim
 
-        self.model_out = nn.Sequential(
-            nn.Linear(self.rnndim, 32),
+        self.obs_pre = models.resnet18(pretrained=True)
+        self.obs_pre.fc = nn.Sequential(
+            nn.LazyLinear(512),
             nn.ReLU(),
-            nn.Linear(32, 3)
-        )
+            nn.Linear(512, 128),
+            nn.ReLU()
+            )
 
     def forward(self, img, action):
-        obs = self.obs_pre(self.normalize(img))
+        # img = transforms.functional.resize(img,[224,224])
+        obs = self.obs_pre(img)
         ''' Change obs to 2*rnndim encoding, this is then split into Hx and Cx '''
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
         '''Can replace repeat(1,1,1), with repeat(1,action.shape[0]) during runtime for significant speed improvment'''
-        Hx = Hx.repeat(1, 1, 1)
-        Cx = Cx.repeat(1, 1, 1)
+        if obs.shape[0] == 1:
+            Cx = Cx.repeat(1, action.shape[0], 1)
+            Hx = Hx.repeat(1, action.shape[0], 1)
+        else:
+            Hx = Hx.repeat(1, 1, 1)
+            Cx = Cx.repeat(1, 1, 1)
         action = self.action_pre(action)
         action = action.transpose(1, 0)# put "time" first
         out, (_, _) = self.lstm(action, (Hx, Cx))
@@ -114,8 +123,7 @@ class HERDR_Pos(HERDR):
         out = out.transpose(1, 0) # put "batch" first
         out = self.model_out(out)
         ''' Output shape is (Batch, Horizon, 3)) '''
-        event, pos_est = out[:,:,0], out[:,:,1:]
-        return event.unsqueeze(2), pos_est
+        return out
 
 
 if __name__ == "__main__":
@@ -139,7 +147,7 @@ if __name__ == "__main__":
         # print("Use CPU")
 
 
-    model = HERDR_Pos(Horizon=hor, RnnDim=64)
+    model = HERDR_Resnet(Horizon=hor, RnnDim=64)
     # model = torch.load("/home/nathan/HERDR/models/carla07-04-2022--14:41.pth")
     model.model_out = nn.Sequential(
         model.model_out,
@@ -148,6 +156,12 @@ if __name__ == "__main__":
     model.eval()
     model.to(device)
     # video = cv2.VideoCapture(0)
+    preprocess = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
     # Clear camera opening frame
     # _, _ = video.read()
@@ -158,14 +172,14 @@ if __name__ == "__main__":
     for i in range(0, 1):
     # while True:
         # check, frame = video.read()
-        frame = cv2.imread("/home/nathan/HERDR/images/2022-02-10 15:22:40.133458.jpg")
-        frame = impreprosses(frame)
+        frame = Image.open("/home/nathan/HERDR/images/2022-02-10 15:22:40.133458.jpg")
+        # frame = cv2.imread("/home/nathan/HERDR/images/2022-02-10 15:22:40.133458.jpg")
+        frame = preprocess(frame).unsqueeze(0)
         actions = planner.sample_new(batches=batches)
         # print(frame.shape, actions.shape)
         frame, actions = frame.to(device), actions.to(device)
-        r, pos = model(frame, actions)
+        r= model(frame, actions)
         print(r)
-        print(pos)
         # tout = torch.count_nonzero(abs(r[:, :, 0] - t1) < 0.11)
         # print(tout)
         # torch.onnx.export(model,(frame, actions),'Herdr.onnx')
