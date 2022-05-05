@@ -866,7 +866,7 @@ DEF Hircus Robot {
   }
   physics Physics {
   }
-  controller "Hircus"
+  controller "Orca"
   controllerArgs [
     ""
   ]

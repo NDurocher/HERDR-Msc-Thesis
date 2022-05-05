@@ -29,7 +29,7 @@ class Orca_peds(object):
 
     def update(self):
         self.position = np.asarray(self.ped.getPosition())[[0,2]]
-        self.velocity = np.asarray(self.ped.getVelocity())[[0,2]]
+        self.velocity = 0 #np.asarray(self.ped.getVelocity())[[0,2]]
 
 
 class Orca (Supervisor):
