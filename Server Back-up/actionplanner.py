@@ -1,9 +1,10 @@
+from termios import VEOL
 import numpy as np
 import torch
 
 
 class HERDRPlan:
-    def __init__(self, Horizon=10, vel_init=1.5, steer_init=0, gamma=50):
+    def __init__(self, Horizon=10, vel_init=1.5, steer_init=0, gamma=50, variance=(0.3,1.5)):
         # Set default starting value for actions
         # [Velocity (m/s), Steering angle (rad)]
         self.horizon = Horizon
@@ -14,12 +15,15 @@ class HERDRPlan:
         steer_mean = steer_init*torch.zeros(self.horizon)
         self.mean = torch.stack((vel_mean, steer_mean)).double()
         # set guess for variance
-        vel_cov = 0.5*torch.ones(self.horizon, 1)
-        steer_cov = 1.5*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
+        vel_cov = variance[0]*torch.ones(self.horizon, 1)
+        steer_cov = variance[1]*torch.ones(self.horizon, 1)  # 0.1*torch.arange(1, self.horizon+1).unsqueeze(1)
         self.cov = torch.stack((vel_cov, steer_cov)).transpose(2, 0)
         # Define parameter to adjust for high weight updates
         self.gamma = torch.tensor(gamma)
         self.beta = 0.6
+
+    def reset(self):
+        self.__init__(self.horizon, self.vel_init, self.steer_init, self.gamma.item())
 
     def sample_new(self, batches=1):
         cov = self.cov.repeat(batches, 1, 1)
@@ -78,4 +82,6 @@ if __name__ == "__main__":
     # samp = samp.unsqueeze(0)
     # test.gamma = test.gamma.to(device)
     test.update_new(R, samp)
-    # print(test.mean.shape)
+    print(test.mean)
+    test.reset()
+    print(test.mean)

@@ -1,23 +1,26 @@
-import pandas as pd
-import torch
-from torch import nn
-import torchvision
-import cv2
-import numpy as np
-from pathlib import Path
 import os
 import pickle
-from matplotlib import pyplot as plt
-from matplotlib import figure
-import matplotlib as mpl
-from matplotlib.collections import LineCollection
-from Badgrnet import HERDR
-from actionplanner import HERDRPlan
-from Carla_Trainer import carla_hdf5dataclass
-from torch.utils.data.sampler import SubsetRandomSampler
-import time
-import h5py
 import shutil
+import time
+from pathlib import Path
+
+import cv2
+import h5py
+import matplotlib as mpl
+import numpy as np
+import pandas as pd
+import torch
+import torchvision
+from matplotlib import figure
+from matplotlib import pyplot as plt
+from matplotlib.collections import LineCollection
+from torch import nn
+from torch.utils.data.sampler import SubsetRandomSampler
+
+from actionplanner import HERDRPlan
+from Badgrnet import HERDR
+from Carla_Trainer import carla_hdf5dataclass
+
 
 def plot_trajectory(robot_traj, line_values, goal, traj_length=-1, collision=-1):
     plt.clf()
@@ -96,7 +99,6 @@ def plot_action_cam_view(position, frame, event_probs, state, planner_mean=None)
     frame = torch.index_select(frame, 2, indices)    
     plt.imshow(frame.int().numpy(), extent=[-1.5, 1.5, 0, 2])
     plt.autoscale(False)
-    plt.title('Probabilities of Unsafe Position')
     # if type(planner_mean) == type(None):
     #     return
     # planner_mean = planner_mean.numpy().T
@@ -119,6 +121,7 @@ def plot_action_cam_view(position, frame, event_probs, state, planner_mean=None)
     # lc.set_array(np.ones((10)))
     # lc.set_linewidth(3)
     # plt.gca().add_collection(lc)
+    plt.title('Probabilities of Unsafe Position')
 
 def add2pickle(file_name, run_dict, overwrite=False):
     dataframe = pd.DataFrame(run_dict, index=[0])
@@ -134,7 +137,20 @@ def add2pickle(file_name, run_dict, overwrite=False):
     return size
     
 
+def plot_heatmap(collision_locations):
+    grid = torch.zeros((200,200))
 
+    for location in collision_locations:
+        x, y = int(location[0]), int(location[1]) 
+        grid[y,x] += 1.
+
+    fig, ax = plt.subplots()
+
+    map_img = plt.imread("/home/nathan/HERDR/tsne/City_top_down.png")  #/Users/NathanDurocher/Documents/GitHub/HERDR/
+    size = 185
+    ax.imshow(map_img, extent=[-size, size, -size, size])
+    ax.imshow(grid.numpy(), interpolation="quadric", alpha=0.1)
+    plt.savefig('./Heatmaps_crashes.jpg')
 
 def count_data_ratio(loader):
     total = len(loader)*10
@@ -187,13 +203,13 @@ def loadfromfile(file_path):
 
 if __name__ == "__main__":
     dir_name = Path(Path.cwd())
-    dir_name = str(dir_name) + '/all_carla_hdf5s/'
-    dataset = carla_hdf5dataclass(dir_name, 10, '/home/nathan/HERDR/carla_images', counting=True, load_all_files=True, recursive=True)
-    print(len(dataset))
-    test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
-    testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=1)
-    count_data_ratio(testloader)
-    dataset.counting=False
+    dir_name = str(dir_name) + '/old_carla_hdf5s/'
+    dataset = carla_hdf5dataclass(dir_name, 10, '/home/nathan/HERDR/old_carla_images', counting=True, load_all_files=True, recursive=True)
+    print(f'Time in hours {len(dataset)/(5*3600):.2f}')
+    # test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
+    # testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=1)
+    # count_data_ratio(testloader)
+    # dataset.counting=False
     # testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=1)
     # print(next(iter(testloader)))
     # moveimages(dir_name,recursive=True)

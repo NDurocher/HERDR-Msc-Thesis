@@ -1,14 +1,15 @@
 #!*python*
 
-from ctypes import resize
 import faulthandler
-from torch import nn
-import torch
+
 import cv2
-from torchvision import transforms,models
-from torchvision.io import read_image
 import pycuda.driver as cuda
+import torch
 from PIL import Image
+from torch import nn
+from torchvision import models, transforms
+from torchvision.io import read_image
+
 
 class HERDR(nn.Module):
     def __init__(self, Horizon=1, RnnDim=64):
@@ -16,36 +17,37 @@ class HERDR(nn.Module):
         self.horizon = Horizon
         self.rnndim = RnnDim
 
-        self.obs_pre = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=(5, 5), stride=(2, 2)),
-            nn.MaxPool2d(5, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=(5, 5), stride=(2, 2)),
-            nn.MaxPool2d(4, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(32, 32, kernel_size=(4, 4), stride=(2, 2)),
-            nn.MaxPool2d(3, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1)),
-            nn.ReLU(),
-            nn.Flatten(),
-            nn.LazyLinear(256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
-
         # self.obs_pre = nn.Sequential(
-        #     nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
+        #     nn.Conv2d(3, 16, kernel_size=(5, 5), stride=(2, 2)),
+        #     nn.MaxPool2d(5, stride=2),
+        #     nn.ReLU(),
+        #     nn.Conv2d(16, 32, kernel_size=(5, 5), stride=(2, 2)),
         #     nn.MaxPool2d(4, stride=2),
         #     nn.ReLU(),
-        #     nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
-        #     nn.MaxPool2d(2, stride=2),
+        #     nn.Conv2d(32, 32, kernel_size=(4, 4), stride=(2, 2)),
+        #     nn.MaxPool2d(3, stride=2),
         #     nn.ReLU(),
-        #     nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
+        #     nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1)),
         #     nn.ReLU(),
         #     nn.Flatten(),
         #     nn.LazyLinear(256),
         #     nn.ReLU(),
         #     nn.Linear(256, 128),
+        # )
+
+        self.obs_pre = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=(5, 5), stride=(2, 2)),
+            nn.MaxPool2d(4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2)),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2)),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.LazyLinear(256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
         )
         self.action_pre = nn.Sequential(
             nn.Linear(2, 16),
@@ -73,7 +75,6 @@ class HERDR(nn.Module):
         ''' Change obs to 2*rnndim encoding, this is then split into Hx and Cx '''
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
-        '''Can replace repeat(1,1,1), with repeat(1,action.shape[0]) during runtime for significant speed improvment'''
         if obs.shape[0] == 1:
             Cx = Cx.repeat(1, action.shape[0], 1)
             Hx = Hx.repeat(1, action.shape[0], 1)

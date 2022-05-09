@@ -95,8 +95,8 @@ class carla_hdf5dataclass(data.Dataset):
             # path = glob.glob(f'{self.image_fp}/**/{img_name}.jpg', recursive=True)[0]
             # img = resize(read_image(f'{path}'),[96,192]).float()
             img = read_image(f'{path}').float()
-            img = Image.open(f'{path}')
-            img = self.preprocess(img)
+            # img = Image.open(f'{path}')
+            # img = self.preprocess(img)
             # img = read_image(f'{self.image_fp}/{img_name}.jpg').float()
         
         ls = np.concatenate((self.data[i:end_i, 0:3], self.data[i:end_i, 4, None]), axis=1).copy()
@@ -132,11 +132,6 @@ class carla_hdf5dataclass(data.Dataset):
             act[:,1] = -act[:,1]
 
         return img, act, gnd
-
-    def set_pos_w(self, value):
-        ''' Set the positive gnd loss weight and re-enable image loading in get_data '''
-        self.pos_w = value/4
-        self.counting = False
 
     def calculate_position(self, actions):
         state = torch.zeros((actions.shape[0],actions.shape[1] ,3)).to(self.device)
@@ -203,12 +198,12 @@ class carla_hdf5dataclass(data.Dataset):
 
 if __name__ == "__main__":
     HRZ = 10
-    dataset = carla_hdf5dataclass('/home/nathan/HERDR/all_carla_hdf5s/', HRZ, '/home/nathan/HERDR/carla_images/', recursive=True, load_all_files=True)
+    dataset = carla_hdf5dataclass('/home/nathan/HERDR/old_carla_hdf5s/', HRZ, '/home/nathan/HERDR/old_carla_images/', recursive=True, load_all_files=True)
     test_sampler = SubsetRandomSampler(dataset.valid_start_indices)
     testloader = torch.utils.data.DataLoader(dataset, sampler=test_sampler, batch_size=32, num_workers=3)
     # print(next(iter(testloader)))
     
-    pretrained = True
+    pretrained = False
     if pretrained:
         model_name = "carla03-05-2022--11:08"
         model = torch.load(f'/home/nathan/HERDR/models/{model_name}.pth')
@@ -217,16 +212,17 @@ if __name__ == "__main__":
         log_time = datetime.now().strftime("%d-%m-%Y--%H:%M") + model_name[-5:] #+ "--from17:38"
         writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
     else:
-        model = HERDR_Resnet(Horizon=HRZ)
-        opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-2)
+        model = HERDR(Horizon=HRZ)
+        opt = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-1)
         log_time = datetime.now().strftime("%d-%m-%Y--%H:%M")
-        writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}-Resnet18')
+        # writer = SummaryWriter(log_dir=f'/home/nathan/HERDR/carla_logs/{log_time}')
+        writer = None
     
     max_loss = 10000
     end_step = 0
     for epoch in range(0, 9):
         loss, pos_accuracy, accuracy, end_step = dataset.one_epoch(model,testloader, start_step=end_step, writer=writer, opt=opt)
-        print(f"Epoch {epoch+1} - Loss: {loss:.4f}, +Accuracy: {pos_accuracy:.4f}, TAccuracy: {accuracy:.4f}, # steps: {end_step}")
+        print(f"Epoch {epoch+1} - Loss: {loss:.3f}, +Accuracy: {pos_accuracy:.3f}, TAccuracy: {accuracy:.3f}, # steps: {end_step}")
         if loss < max_loss:
             max_loss = loss
             torch.save(model, f'./models/carla{log_time}.pth')
