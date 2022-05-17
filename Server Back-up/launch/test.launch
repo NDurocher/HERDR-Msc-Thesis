@@ -1,0 +1,37 @@
+<launch>
+    <arg name='camera_topic' default='/carla/ego/front/image'/>
+    <arg name='velocity_topic' default='/carla/ego/vehicle_status'/>
+    <arg name='control_freq' default='5.'/>
+    <arg name='batches' default='50'/>
+    <arg name='horizon' default='10'/>
+    <arg name='initial_velocity' default='1.5'/>
+    <arg name='initial_steer' default='0.0'/>
+    <arg name='gamma' default='20'/>
+    <arg name='action_variance' default='(0.3,1.5)'/>
+    <arg name='goal_gain' default='0.25'/>
+    <arg name='action_gain' default='0.2'/>
+    <arg name='wheel_base' default='0.7'/>
+    <arg name='model_name' default='carla23-04-2022--14:57--from09:34.pth'/>
+
+
+  <node name="carla_environment" pkg="Herdr_test" type="Carla_Run_Herdr.py" output="screen"/>
+
+  <node name="herdr_control_policy" pkg="Herdr_test" type="Real_Life_Test.py" output="screen">
+    <param name="camera_topic" value="$(arg camera_topic)" unless="$(eval camera_topic == '')"/>
+    <param name="control_freq" value="$(arg control_freq)" unless="$(eval control_freq == '')"/>
+    <param name="batches" value="$(arg batches)" unless="$(eval batches == '')"/>
+    <param name="horizon" value="$(arg horizon)" unless="$(eval horizon == '')"/>
+    <param name="initial_velocity" value="$(arg initial_velocity)" unless="$(eval initial_velocity == '')"/>
+    <param name="initial_steer" value="$(arg initial_steer)" unless="$(eval initial_steer == '')"/>
+    <param name="gamma" value="$(arg gamma)" unless="$(eval gamma == '')"/>
+    <param name="action_variance" value="$(arg action_variance)" unless="$(eval action_variance == '')"/>
+    <param name="goal_gain" value="$(arg goal_gain)" unless="$(eval goal_gain == '')"/>
+    <param name="action_gain" value="$(arg action_gain)" unless="$(eval action_gain == '')"/>
+    <param name="wheel_base" value="$(arg wheel_base)" unless="$(eval wheel_base == '')"/>
+    <param name="model_name" value="$(arg model_name)" unless="$(eval model_name == '')"/>
+    <remap from="input_image" to="$(arg camera_topic)"/>
+    <remap from="input_vel" to="$(arg velocity_topic)"/>
+  </node>
+  <!-- <node name="subscriber" pkg="Herdr_test" type="subscriber.py" output="screen"/> -->
+  <!-- <node name="talker_node" pkg="Herdr_test" type="Publisher.py" output="screen"/> -->
+</launch>

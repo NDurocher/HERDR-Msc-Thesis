@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 from pathlib import Path
 
 import cv2
@@ -11,6 +11,10 @@ from Badgrnet import HERDR
 # from torchvision import transforms
 # from PIL import Image
 from RL_config import get_params
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
+from carla_msgs.msg import CarlaEgoVehicleControl, CarlaEgoVehicleStatus
+import rospy
 
 
 class HerdrAgent():
@@ -25,13 +29,16 @@ class HerdrAgent():
             self.params['Gamma'], self.params['Action Sample Var'])
         self.Get_Model()
         self.Get_Goal()
+        rospy.init_node('Herdr', anonymous=True)
+        self.control_pub = rospy.Publisher('/carla/ego/vehicle_control_cmd', CarlaEgoVehicleControl, queue_size=10)
+        self.done = False
         
     def reset(self):
         self.planner.reset()
 
     def Get_Model(self):
         dir_name = str(Path(Path.cwd()))
-        model_path = dir_name + f"/models/{self.params['Model Name']}"
+        model_path = f"/home/nathan/catkin_ws/src/Herdr_test/models/{self.params['Model Name']}"
         self.model = torch.load(model_path, map_location=self.device)
         self.model.model_out = nn.Sequential(
                     self.model.model_out,
@@ -42,8 +49,15 @@ class HerdrAgent():
     def Get_Image(self):
         ''' Retrive Image from ROS '''
         ## TODO Implement
-        self.frame = torch.zeros(3,480,640)
-        pass
+        image = rospy.wait_for_message('/carla/ego/front/image', Image)
+        bridge = CvBridge()
+        img = torch.tensor(bridge.imgmsg_to_cv2(image, desired_encoding='passthrough'))
+        rospy.loginfo(img.shape)
+        # rospy.loginfo(img.shape)
+        # img = img.reshape((self.im_height, self.im_width, 4))
+        img = img[:, :, :3]
+        # '''Image shape [im_height, im_width, 3], Torch tensor BGR'''
+        self.frame = img.permute(2, 0, 1).float()
 
     def Get_Interupt(self):
         ''' Get Stop Signal from ROS if present '''
@@ -65,7 +79,16 @@ class HerdrAgent():
     def Set_Actions(self):
         ''' Send actions over ROS '''
         ## TODO Implement
-        pass
+        status = rospy.wait_for_message('/carla/ego/vehicle_status',CarlaEgoVehicleStatus)
+        speed = status.velocity
+        if self.planner.mean[0, 0] > speed:
+            a = 0.8
+        else:
+            a = 0.
+        controls = CarlaEgoVehicleControl()
+        controls.throttle = a
+        controls.steer = -self.planner.mean[1,0].item()
+        self.control_pub.publish(controls)
 
     def Propogate_States(self):
         new_pos = self.Position
@@ -91,16 +114,16 @@ class HerdrAgent():
         img = self.frame.unsqueeze(0)
         event = self.model(img.to(self.device), self.actions.to(self.device))[:, :, 0].detach().cpu()
 
-        self.state = self.Propogate_States()
+        # self.state = self.Propogate_States()
 
 
         ''' goal_cost Shape: [BATCH, HRZ] '''
-        goal_cost = torch.linalg.norm(self.state[:,:,:2]-self.goal, dim=2)
-        goal_cost = (goal_cost - goal_cost.min()) / (goal_cost.max() - goal_cost.min())
+        # goal_cost = torch.linalg.norm(self.state[:,:,:2]-self.goal, dim=2)
+        # goal_cost = (goal_cost - goal_cost.min()) / (goal_cost.max() - goal_cost.min())
         
         action_cost = self.actions[:,:,1] ** 2 / 2  + (self.actions[:,:,0] - 1.0) ** 2 / 2
-        self.score = self.params['Goal Cost Gain'] * goal_cost + event + self.params['Action Cost Gain'] * action_cost
-
+        # self.score = self.params['Goal Cost Gain'] * goal_cost + event + self.params['Action Cost Gain'] * action_cost
+        self.score = event + self.params['Action Cost Gain'] * action_cost
         return - self.score
 
     def Finish_Check(self):
@@ -113,9 +136,9 @@ class HerdrAgent():
             print('Made it!!!')
 
     def Step(self):
-        self.Get_Interupt()
+        # self.Get_Interupt()
         self.Get_Image()
-        self.Get_Position()
+        # self.Get_Position()
 
         self.actions = self.planner.sample_new(batches=self.params['Batches'])
         score = self.Call_Model()
@@ -123,10 +146,11 @@ class HerdrAgent():
         
         self.Set_Actions()
 
-        self.Finish_Check()
+        # self.Finish_Check()
 
     
 
 if __name__ == '__main__':
     agent = HerdrAgent()
-    agent.Step()
+    while not agent.done:
+        agent.Step()

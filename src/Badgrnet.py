@@ -52,25 +52,25 @@ class HERDR(nn.Module):
         self.lstm = nn.LSTM(input_size=16, hidden_size=self.rnndim, num_layers=1, batch_first=False)
 
     def normalize(self, arr):
-        up, low = arr.max(), arr.min()
-        mu = arr.mean()
-        std = 0.5 * (up - low)
-        normed_arr = (arr - mu) / std
-        # arr = arr/255 - 0.5
+        # up, low = arr.max(), arr.min()
+        # mu = arr.mean()
+        # std = 0.5 * (up - low)
+        # normed_arr = (arr - mu) / std
+        normed_arr = arr/255 - 0.5
         return normed_arr
 
     def forward(self, img, action):
         obs = self.obs_pre(self.normalize(img))
         # Change obs to 2*rnndim encoding, this is then split into Hx and Cx
-        print(obs.shape)
+        # print(obs.shape)
         obs = self.init_hidden(obs)
         Hx, Cx = torch.chunk(obs, 2, dim=1)
-        # # Hx = Hx.repeat(1,1,1)
-        # # Cx = Cx.repeat(1,1,1)
-        # Hx = Hx[None,:,:]
-        # Cx = Cx[None,:,:]
-        Hx = Hx.repeat(1, action.shape[0], 1)
-        Cx = Cx.repeat(1, action.shape[0], 1)
+        if obs.shape[0] == 1:
+            Cx = Cx.repeat(1, action.shape[0], 1)
+            Hx = Hx.repeat(1, action.shape[0], 1)
+        else:
+            Hx = Hx.repeat(1, 1, 1)
+            Cx = Cx.repeat(1, 1, 1)
         action = self.action_pre(action)
         # put "time" first
         action = action.transpose(1, 0)

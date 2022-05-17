@@ -108,11 +108,11 @@ min_dist = []
 in_collision = []
 ped_area = []
 traj_length = 0
-# writer_dist = animation.FFMpegWriter(fps=7)
-# writer_score = animation.FFMpegWriter(fps=7)
-# fig = plt.figure(figsize=(16, 8.9), dpi=80)
-# writer_dist.setup(fig, '/home/nathan/HERDR/VideosOut/clearance.mp4')
-# writer_score.setup(fig, '/home/nathan/HERDR/VideosOut/score.mp4')
+writer_dist = animation.FFMpegWriter(fps=7)
+writer_score = animation.FFMpegWriter(fps=7)
+fig = plt.figure(figsize=(16, 8.9), dpi=80)
+writer_dist.setup(fig, '/Users/NathanDurocher/Documents/GitHub/HERDR/VideosOut/clearance.mp4')
+writer_score.setup(fig, '/Users/NathanDurocher/Documents/GitHub/HERDR/VideosOut/score.mp4')
 controller = Logger()
 GOAL = controller.cc.getPosition()
 unsafe_score = []
@@ -126,22 +126,22 @@ while not controller.step(controller.timestep) == -1:
     min_dist.append(out_log[0])
     in_collision.append(out_log[1])
     ped_area.append(out_log[2])
-    # controller.grab_frame()
+    controller.grab_frame()
     traj_length = pathlength(np.asarray(Hircus_traj)[:, 0], np.asarray(Hircus_traj)[:, 2])
     unsafe_score.append(is_float(controller.customdata.getSFString()))
-    # plot_trajectory(np.asarray(Hircus_traj), np.asarray(min_dist), np.asarray(ped_trajs), np.array([0, 0, 0]),
-    #                 "Clearance", traj_length, collision=in_collision.count(1))
-    # writer_dist.grab_frame()
-    # plot_trajectory(np.asarray(Hircus_traj), np.asarray(unsafe_score), np.asarray(ped_trajs), np.array([0, 0, 0]),
-    #                 "Event Totals", traj_length, collision=in_collision.count(1))
-    # writer_score.grab_frame()
+    plot_trajectory(np.asarray(Hircus_traj), np.asarray(min_dist), np.asarray(ped_trajs), np.array([0, 0, 0]),
+                    "Clearance", traj_length, collision=in_collision.count(1))
+    writer_dist.grab_frame()
+    plot_trajectory(np.asarray(Hircus_traj), np.asarray(unsafe_score), np.asarray(ped_trajs), np.array([0, 0, 0]),
+                    "Event Totals", traj_length, collision=in_collision.count(1))
+    writer_score.grab_frame()
 min_dist = np.asarray(min_dist).mean()
 in_collision = np.asarray(in_collision).sum()
 ped_area = np.asarray(ped_area).sum()
 dataframe = pd.DataFrame({'Min_Dist': min_dist, 'Collisions': in_collision, 'In_Ped_Area': ped_area,
                           'Path_Length': traj_length}, index=[0])
-add2pickle('/home/nathan/HERDR/VideosOut/HERDR_Results.pkl', dataframe)
-# writer_dist.finish()
-# writer_score.finish()
+# add2pickle('/home/nathan/HERDR/VideosOut/HERDR_Results.pkl', dataframe)
+writer_dist.finish()
+writer_score.finish()
 
 

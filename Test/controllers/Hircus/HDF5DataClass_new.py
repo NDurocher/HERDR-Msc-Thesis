@@ -55,8 +55,9 @@ class HDF5Dataset(data.Dataset):
         y = torch.from_numpy(y)
 
         # get image
-        img_name = self.get_data("img", index)
-        z = read_image(f'images/{img_name.decode("UTF-8")}.jpg').float()
+        # img_name = self.get_data("img", index)
+        # z = read_image(f'images/{img_name.decode("UTF-8")}.jpg').float()
+        z = torch.zeros((2,2))
 
         return x, y, z
 
@@ -139,6 +140,13 @@ class HDF5Dataset(data.Dataset):
             val = self.gnd[i]
         return val
 
+def count_data_ratio(loader):
+    total = len(loader)*10
+    positive = sum([torch.count_nonzero(gnd) for act, gnd, im in loader])
+    ratio = total/positive
+    print(f'Total Samples: {total}, # Positive: {positive} Ratio of total:positive {ratio:.4f}')
+    return ratio
+
 
 if __name__ ==  "__main__":
     from torch.utils import data
@@ -150,20 +158,12 @@ if __name__ ==  "__main__":
         device = torch.device('cpu')
         print("Use CPU")
 
-    loader_params = {'batch_size': 100, 'shuffle': False}  # 'num_workers': 1
+    loader_params = {'batch_size': 1, 'shuffle': False}  # 'num_workers': 1
     dataset = HDF5Dataset('/Users/NathanDurocher/Documents/GitHub/HERDR/Test/controllers/Hircus/hdf5s/',
-                          recursive=False, load_data=True,
+                          recursive=True, load_data=True,
                           data_cache_size=1, transform=None)
 
     data_loader = data.DataLoader(dataset, **loader_params)
 
-    total = len(dataset)
-    print(f'Total # of samples: {total * 10}')
-    positive_total = 0
-    ii = 0
-    for x, y, z in data_loader:
-        positive_total += torch.count_nonzero(z)
-        if ii == 2:
-            break
-        ii += 1
-
+    # count_data_ratio(data_loader)
+    print( (1049500/1.16)/(720000/42))
