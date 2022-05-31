@@ -22,6 +22,7 @@ from Badgrnet import HERDR
 from Carla_Trainer import carla_hdf5dataclass
 
 
+
 def plot_trajectory(robot_traj, line_values, goal, traj_length=-1, collision=-1):
     plt.clf()
     plt.figure(figsize=(16, 16), dpi=80)

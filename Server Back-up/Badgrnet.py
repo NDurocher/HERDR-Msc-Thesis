@@ -3,12 +3,13 @@
 import faulthandler
 
 import cv2
-import pycuda.driver as cuda
+# import pycuda.driver as cuda
 import torch
 from PIL import Image
 from torch import nn
 from torchvision import models, transforms
 from torchvision.io import read_image
+from metrics_utils_ros import plot_action_cam_view
 
 
 class HERDR(nn.Module):
@@ -131,15 +132,15 @@ if __name__ == "__main__":
     from actionplanner import HERDRPlan
     def impreprosses(im):
         im = cv2.resize(im, (640, 480))
-        im = loader(im).float()
+        im = loader(im)*255
         im = im.unsqueeze(0)
-        im = im.repeat(batches, 1, 1, 1)
+        # im = im.repeat(batches, 1, 1, 1)
         return im
 
-    cuda.init()
-    batches = 2
+    # cuda.init()
+    batches = 50
     hor = 10
-    planner = HERDRPlan(Horizon=hor, steer_init=0.5)
+    planner = HERDRPlan(Horizon=hor, steer_init=0.0, variance=(0.3, 1.5))
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
         # print("Use GPU")
@@ -148,44 +149,41 @@ if __name__ == "__main__":
         # print("Use CPU")
 
 
-    model = HERDR_Resnet(Horizon=hor, RnnDim=64)
-    # model = torch.load("/home/nathan/HERDR/models/carla07-04-2022--14:41.pth")
+    # model = HERDR(Horizon=hor, RnnDim=64)
+    # model = torch.load("carla23-04-2022--14:57--from09:34.pth", map_location='cpu')
+    model = torch.load("carla21-05-2022--13:41Herdr_Feb22_640.pth", map_location='cpu')
     model.model_out = nn.Sequential(
         model.model_out,
         nn.Sigmoid()
     )
     model.eval()
     model.to(device)
-    # video = cv2.VideoCapture(0)
-    preprocess = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
+    video = cv2.VideoCapture(0)
+    # preprocess = transforms.Compose([
+    #     transforms.Resize(256),
+    #     transforms.CenterCrop(224),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    # ])
 
     # Clear camera opening frame
-    # _, _ = video.read()
+    _, _ = video.read()
 
     # Take one image
     loader = transforms.Compose([transforms.ToTensor()])
     t1 = torch.ones(hor, batches)
-    for i in range(0, 1):
-    # while True:
-        # check, frame = video.read()
-        frame = Image.open("/home/nathan/HERDR/images/2022-02-10 15:22:40.133458.jpg")
+    # for i in range(0, 1):
+    while True:
+        check, frame = video.read()
+        # frame = Image.open("/home/nathan/HERDR/images/2022-02-10 15:22:40.133458.jpg")
         # frame = cv2.imread("/home/nathan/HERDR/images/2022-02-10 15:22:40.133458.jpg")
-        frame = preprocess(frame).unsqueeze(0)
+        frame = impreprosses(frame)
         actions = planner.sample_new(batches=batches)
-        # print(frame.shape, actions.shape)
-        frame, actions = frame.to(device), actions.to(device)
-        r= model(frame, actions)
-        print(r)
-        # tout = torch.count_nonzero(abs(r[:, :, 0] - t1) < 0.11)
-        # print(tout)
-        # torch.onnx.export(model,(frame, actions),'Herdr.onnx')
-        # print("Prediction: ", r.detach().flatten())
-        # print(r.shape, actions.shape)
-        # planner.update_new(r.detach(), actions)
+        # frame, actions = frame.to(device), actions.to(device)
+        r = model(frame, actions)[:,:,0].detach()
+        # print(planner.mean)
+        # print(r)
+        planner.update_new(-r,actions)
+        plot_action_cam_view(frame/255, r, 0.2, 0.7, actions.numpy())
 
 
