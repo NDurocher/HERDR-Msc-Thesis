@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     # model = HERDR(Horizon=hor, RnnDim=64)
     # model = torch.load("carla23-04-2022--14:57--from09:34.pth", map_location='cpu')
-    model = torch.load("carla21-05-2022--13:41Herdr_Feb22_640.pth", map_location='cpu')
+    model = torch.load("carla21-05-2022--13:41Herdr_Feb22_640.pth", map_location='cpu') #Server Back-up/
     model.model_out = nn.Sequential(
         model.model_out,
         nn.Sigmoid()
@@ -184,6 +184,6 @@ if __name__ == "__main__":
         # print(planner.mean)
         # print(r)
         planner.update_new(-r,actions)
-        plot_action_cam_view(frame/255, r, 0.2, 0.7, actions.numpy())
+        plot_action_cam_view(frame/255, r, 0.2, 0.7, actions.numpy(), planner.mean)
 
 

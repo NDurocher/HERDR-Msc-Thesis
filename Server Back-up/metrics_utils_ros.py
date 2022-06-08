@@ -100,51 +100,43 @@ def plot_action_cam_view(frame, event_probs, dt, wb, actions, planner_mean=None)
     # frame = torch.index_select(frame, 2, indices)   
     event_probs = event_probs[:,1:].numpy().flatten()
     colors = set_cmap_color(plt.cm.autumn_r, event_probs)
-    frame = np.ascontiguousarray(255*frame.squeeze(0).permute(1,2,0).numpy(), dtype=np.uint8)
+    samples_frame = np.ascontiguousarray(255*frame.squeeze(0).permute(1,2,0).numpy(), dtype=np.uint8)
+    mean_frame = np.ascontiguousarray(255*frame.squeeze(0).permute(1,2,0).numpy(), dtype=np.uint8)
     for s,c in zip(segments,colors):
         # s = (255*s).astype(np.uint8)
-        x = (frame.shape[1]/2+frame.shape[1]*s[:,0]).astype(np.uint16)
-        y = (frame.shape[0]-frame.shape[0]*s[:,1]).astype(np.uint16)
-        cv2.line(frame,(x[0],y[0]),(x[1],y[1]),255*c[:4],3)
+        x = (samples_frame.shape[1]/2+samples_frame.shape[1]*s[:,0]).astype(np.uint16)
+        y = (samples_frame.shape[0]-samples_frame.shape[0]*s[:,1]).astype(np.uint16)
+        cv2.line(samples_frame,(x[0],y[0]),(x[1],y[1]),255*c[:4],3)
     # plt.imshow(frame.int().numpy(), extent=[-1.5, 1.5, 0, 2])
     # plt.autoscale(False)
     # plt.title('Probabilities of Unsafe Position')
-    cv2.imshow('Probabilities of Unsafe Position', frame)
+    cv2.imshow('Probabilities of Unsafe Position', samples_frame)
     cv2.waitKey(1) 
-    cv2.destroyAllWindows() 
-    # if type(planner_mean) == type(None):
-    #     return
-    # planner_mean = planner_mean.numpy().T
-    # ''' Display optimal path from planner mean '''
-    # opt_state = np.zeros((planner_mean.shape[0],3))
-    # dt = 1/5
-    # wb = 0.7
-    # ''' opt_state := [X, Y, phi] '''
-    # for i in range(0,len(planner_mean) - 1):
-    #     opt_state[i + 1, 0] = opt_state[i, 0] + dt * np.cos(
-    #         opt_state[i, 2]) * planner_mean[i, 0]
-    #     opt_state[i + 1, 1] = opt_state[i, 1] + dt * np.sin(
-    #         opt_state[i, 2]) * planner_mean[i, 0]
-    #     opt_state[i + 1, 2] = opt_state[i, 2] - dt * planner_mean[i, 1] * planner_mean[i, 0] / wb
-    # opt_state[:, 1] = opt_state[:, 1]/abs(opt_state[:, 1]).max()*1.1
-    # opt_state[:, 0] = opt_state[:, 0]/abs(opt_state[:, 0]).max()*0.7 
-    # points = np.expand_dims(np.array([opt_state[:, 1], opt_state[:, 0]]).T, 1)
-    # segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    # lc = LineCollection(segments, cmap=plt.get_cmap('YlGn'), norm=plt.Normalize(0, 1))
-    # lc.set_array(np.ones((10)))
-    # lc.set_linewidth(3)
-    # plt.gca().add_collection(lc)
-    
-    # fig.canvas.draw()
-    # # Now we can save it to a numpy array.
-    # data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    # data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    # # data shape above [width, height, 3]
-    # data = data.transpose(2,0,1)
-    # # data shape above [3, width, height]
-    # # data = np.zeros((3,480,640))
-    # plt.close(fig)
-    # return data.astype(np.uint8)
+    # cv2.destroyAllWindows() 
+    if type(planner_mean) == type(None):
+        return
+    planner_mean = planner_mean.numpy().T
+    ''' Display optimal path from planner mean '''
+    opt_state = np.zeros((planner_mean.shape[0],3))
+    dt = 1/5
+    wb = 0.7
+    ''' opt_state := [X, Y, phi] '''
+    for i in range(0,len(planner_mean) - 1):
+        opt_state[i + 1, 0] = opt_state[i, 0] + dt * np.cos(
+            opt_state[i, 2]) * planner_mean[i, 0]
+        opt_state[i + 1, 1] = opt_state[i, 1] + dt * np.sin(
+            opt_state[i, 2]) * planner_mean[i, 0]
+        opt_state[i + 1, 2] = opt_state[i, 2] - dt * planner_mean[i, 1] * planner_mean[i, 0] / wb
+    opt_state[:, 1] = opt_state[:, 1]/abs(opt_state[:, 1]).max()*0.4
+    opt_state[:, 0] = opt_state[:, 0]/abs(opt_state[:, 0]).max()*0.3 
+    points = np.expand_dims(np.array([opt_state[:, 1], opt_state[:, 0]]).T, 1)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    for s in segments:
+        x = (mean_frame.shape[1]/2+mean_frame.shape[1]*s[:,0]).astype(np.uint16)
+        y = (mean_frame.shape[0]-mean_frame.shape[0]*s[:,1]).astype(np.uint16)
+        cv2.line(mean_frame,(x[0],y[0]),(x[1],y[1]),(10,250,100),3)
+    cv2.imshow('Optimal Action Sequence', mean_frame)
+    cv2.waitKey(1) 
 
 def set_cmap_color(cmap, events,N=255):
     # "Copy colormap and set alpha values"
