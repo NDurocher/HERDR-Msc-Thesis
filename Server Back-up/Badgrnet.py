@@ -91,41 +91,41 @@ class HERDR(nn.Module):
         ''' Output shape is (Batch, Horizon, 1)) '''
         return out
 
-class HERDR_Resnet(HERDR):
-    def __init__(self, Horizon=1, RnnDim=64):
-        super().__init__()
-        self.horizon = Horizon
-        self.rnndim = RnnDim
+# class HERDR_Resnet(HERDR):
+#     def __init__(self, Horizon=1, RnnDim=64):
+#         super().__init__()
+#         self.horizon = Horizon
+#         self.rnndim = RnnDim
 
-        self.obs_pre = models.resnet18(pretrained=True)
-        self.obs_pre.fc = nn.Sequential(
-            nn.LazyLinear(512),
-            nn.ReLU(),
-            nn.Linear(512, 128),
-            nn.ReLU()
-            )
+#         self.obs_pre = models.resnet18(pretrained=True)
+#         self.obs_pre.fc = nn.Sequential(
+#             nn.LazyLinear(512),
+#             nn.ReLU(),
+#             nn.Linear(512, 128),
+#             nn.ReLU()
+#             )
 
-    def forward(self, img, action):
-        # img = transforms.functional.resize(img,[224,224])
-        obs = self.obs_pre(img)
-        ''' Change obs to 2*rnndim encoding, this is then split into Hx and Cx '''
-        obs = self.init_hidden(obs)
-        Hx, Cx = torch.chunk(obs, 2, dim=1)
-        '''Can replace repeat(1,1,1), with repeat(1,action.shape[0]) during runtime for significant speed improvment'''
-        if obs.shape[0] == 1:
-            Cx = Cx.repeat(1, action.shape[0], 1)
-            Hx = Hx.repeat(1, action.shape[0], 1)
-        else:
-            Hx = Hx.repeat(1, 1, 1)
-            Cx = Cx.repeat(1, 1, 1)
-        action = self.action_pre(action)
-        action = action.transpose(1, 0)# put "time" first
-        out, (_, _) = self.lstm(action, (Hx, Cx))
-        ''' out.shape = [horizon, batch, hidden(64) '''
-        out = out.transpose(1, 0) # put "batch" first
-        out = self.model_out(out)
-        ''' Output shape is (Batch, Horizon, 3)) '''
-        return out
+    # def forward(self, img, action):
+    #     # img = transforms.functional.resize(img,[224,224])
+    #     obs = self.obs_pre(img)
+    #     ''' Change obs to 2*rnndim encoding, this is then split into Hx and Cx '''
+    #     obs = self.init_hidden(obs)
+    #     Hx, Cx = torch.chunk(obs, 2, dim=1)
+    #     '''Can replace repeat(1,1,1), with repeat(1,action.shape[0]) during runtime for significant speed improvment'''
+    #     if obs.shape[0] == 1:
+    #         Cx = Cx.repeat(1, action.shape[0], 1)
+    #         Hx = Hx.repeat(1, action.shape[0], 1)
+    #     else:
+    #         Hx = Hx.repeat(1, 1, 1)
+    #         Cx = Cx.repeat(1, 1, 1)
+    #     action = self.action_pre(action)
+    #     action = action.transpose(1, 0)# put "time" first
+    #     out, (_, _) = self.lstm(action, (Hx, Cx))
+    #     ''' out.shape = [horizon, batch, hidden(64) '''
+    #     out = out.transpose(1, 0) # put "batch" first
+    #     out = self.model_out(out)
+    #     ''' Output shape is (Batch, Horizon, 3)) '''
+    #     return out
 
 
 if __name__ == "__main__":
@@ -180,6 +180,7 @@ if __name__ == "__main__":
         frame = impreprosses(frame)
         actions = planner.sample_new(batches=batches)
         # frame, actions = frame.to(device), actions.to(device)
+        # print(actions.max())
         r = model(frame, actions)[:,:,0].detach()
         # print(planner.mean)
         # print(r)
