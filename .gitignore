@@ -14,3 +14,7 @@ Test/**/*.onnx
 src/h5test.py
 results/*
 Server Back-up/docker-carla-ros-bridge/ros-bridge/
+Report Back-up/Capra-final.pptx
+Report Back-up/Thesis Defense.pptx
+Report Back-up/~$Thesis Defense.pptx
+*.pptx
