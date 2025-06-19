@@ -1,4 +1,6 @@
-.idea
+.idea/
+.vscode/
+.DS_Store
 Test/**/*.zip
 Test/**/*.png
 Test/**/*.jpg
